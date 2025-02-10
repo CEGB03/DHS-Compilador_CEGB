@@ -1,0 +1,104 @@
+codigo de 3 direcciones (o menos)
+se basa en 
+x = y <op> z que son direcciones de memoria
+como si fuera
+ADD x, y, z
+
+x= y
+jmp l
+label l #etiqueta
+ifnjmp x, l #chequea si es ceor o no y salta a z
+push x #Se usa para cambiar de contexto (entro)
+pop x #Se usa para cambiar de contexto (salgo)
+
+consiste en construir un traductor del arbol a 
+codigo de 3 direcciones, osea como assembler
+
+si tiene errores el codigo NO se genera el codigo intermiedio
+
+Necesito:
+- Un generador de nombres de variables temporales para los resultados intermedios
+- Un generador de nombre de etiquetas para generar los saltos y que sea incremental (no repetir)
+
+x = 3 * y + (5 * z) / 2
+# los "t" son las variables temporales
+t0 = 3 * y # Bajo en el arbol hasta el facto "3", subo a la MUL y vuelvo a bajar a "y", luego resuelvo
+t1 = 5 * z
+t2 = t1 / 2
+t3 = t0 + t2
+x = t3
+# Se hace con visitor
+------------------------------------
+if (x > 0)
+    y = z * 2
+else
+    y = z / 2
+
+# traduccion:
+
+to = x > 0
+ifnjmp to, l0
+t1= z * 2
+y = t1
+jmp l1
+label l0
+t2 = z / 2
+y = t2
+label l1
+
+
+--------------------------------
+int f (int a, int b){
+    return a + b;
+}
+<...>
+    x = f(o, p);
+<...>
+
+# cuerpo de la funcion
+label l0
+pop t0 # direccion de retorno
+pop b # arguentos en orden inverso
+pop a
+t1 = a + b
+push t1
+jmp t0
+<...>
+push o
+push p
+push l1 # lugar de retorno
+jmp l0
+label l1
+pop x // saca t1 de la pila y lo asigna a x (x = t1)
+<...>
+
+
+------------------------------------------------
+OPTIMIZACION CODFIGO INTEMEDIOS
+------------------------------------------------
+
+clang++ -01 -std=c++17 nombreArchivo.cpp //primer nivel de optimizacion (-01)
+g++ -02 -std=c++17 nombreArchivo.cpp //segundo nivel de optimizacion (-02)
+
+buscar:
+operaciones repetidas
+propagacion de constantes
+
+x = (a * b - c) + (a * b + d)
+t0 = a * b
+t1 = t0 - c
+t2 = a * b 
+t3 = t2 + d
+t4 = t1 + t3
+x = t4
+
+Optimizacion(reemplazo var repetidas):
+
+x = (a * b - c) + (a * b + d)
+t0 = a * b
+t1 = t0 - c 
+t3 = t0 + d
+t4 = t1 + t3
+x = t4
+
+PARA EL FINAL HAY QUE TENERLO!!!!!!!!!!!!!!!!!!!!!!!!!!!

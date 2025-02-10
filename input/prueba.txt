@@ -1,0 +1,6 @@
+int z=1;
+while(x<0){
+    y=5;
+}else
+    while(x<10)
+        y=+1;

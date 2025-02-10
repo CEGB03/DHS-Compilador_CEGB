@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [        
+        {
+            "name": "Debug_ANTLR4_grammar",
+            "type": "antlr-debug",
+            "request": "launch",
+            //Archivo con la gramatica
+            "grammar": "${file}",
+            // Archivo a parsear
+            "input": "${workspaceFolder}/input/opal.txt",
+            // Simbolo inicial
+            "startRule": "programa",
+            // Muestra Arbol Sintactico
+            "printParseTree": true,
+            "visualParseTree": true,
+        },
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
