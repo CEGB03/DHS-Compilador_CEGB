@@ -1,16 +1,20 @@
-int x=1;
+int x = 1;
 int f(int y);
 int y;
-int a=0;
+int a = 0;
 bool c = TRUE;
-double d=0;
-while(x<0)
-    int y;
-if(i==1){
-    while(x<10)
-        y=1;
-}else
-    d=2+a;
+double d = 0;
 
+while (x < 0) {
+    int y;
+}
+
+if (i == 1) {
+    while (x < 10) {
+        y = 1;
+    }
+} else {
+    d = 2 + a;
+}
 int xy(bool argA, int argB);
-y= 2+xy(52, a);
+y = 2 + xy(52, a);

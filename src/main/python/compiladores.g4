@@ -25,8 +25,8 @@ MENI: '<=' ;
 OR: '||' ;
 AND: '&&' ;
 
-TRUE: 'true';
-FALSE: 'false';
+TRUE: 'TRUE';
+FALSE: 'FALSE';
 
 NUMERO : DIGITO+ ;
 
@@ -77,8 +77,7 @@ instruccion : declaracionPYC
             ;
 bloqueSolo : LLA instrucciones LLC;
 inic: tipoDatos asignacionNum PYC
-      | tipoDatos asignacionBool PYC
-      ;
+    | tipoDatos asignacionBool PYC;
 declaracion : tipoDatos ID;
 tipoDatos: BOOL
           | INT
@@ -86,9 +85,7 @@ tipoDatos: BOOL
           | DOUBLE
           ; 
 declaracionPYC: declaracion PYC;
-asignacionNum : ID ASIG exp
-              | ID ASIG NUMERO
-              ;
+asignacionNum : ID ASIG exp;
 
 asignacionPYC: asignacion PYC;
 
@@ -116,6 +113,7 @@ t    : MULT factor t
 factor: NUMERO
       | ID
       | funcionVar
+      | PA exp PC
       ;
 funcionVar: ID PA ids PC;
 ids: (ID | NUMERO | BOOLEANS ) iden
@@ -137,8 +135,8 @@ comps: MEN
       | MAYI
       | IGUAL
       ;
-bools: OR factorBool bools
-      | AND factorBool bools
+bools: OR opbool
+      | AND opbool
       |
       ;
 factorBool: TRUE
@@ -160,14 +158,10 @@ iteracion: SUMA NUMERO
           ;
 iif: IF PA cond PC bloque
    | IF PA cond PC bloque else;
-else: ELSE bloque;
+else: ELSE bloque
+    | ELSE iif
+    ;
 
-fexp: ID PA parametros PC;
-parametros: parametro para
-          |
-          ;
-para: COMA parametros;
-parametro: ID;
 funcion: ID PA argumentos PC;
 return: tipoDatos
       | VOID
@@ -177,7 +171,7 @@ returnfun: RETURN exp
          ;
 protofun: return funcion PYC;
 deffuncion: return funcion LLA instrucciones LLC;
-llamadafun: funcion;
+llamadafun: funcionVar;
 argumentos: argumento arg
           |
           ;

@@ -1,0 +1,2 @@
+2025-02-11 05:26:25,074 - ERROR - Error en Walker: 'NoneType' object has no attribute 'accept'
+line 20:17 no viable alternative at input '<EOF>'

@@ -1,9 +1,21 @@
 import sys
+import logging
+import os
 from antlr4 import *
-from compiladoresLexer  import compiladoresLexer
+from compiladoresLexer import compiladoresLexer
 from compiladoresParser import compiladoresParser
 from Escucha import Escucha
 from Walker import Walker
+
+# Crear el directorio output si no existe
+os.makedirs('./output', exist_ok=True)
+
+# Configurar el logger
+logging.basicConfig(filename='./output/Errores&Warnings.txt', level=logging.ERROR, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Redirigir la salida estándar de errores a un archivo
+sys.stderr = open('./output/Errores&Warnings.txt', 'a')
 
 def main(argv):
     archivo = "input/opal.txt"
@@ -16,10 +28,21 @@ def main(argv):
     escucha = Escucha()
     parser.addParseListener(escucha)
     tree = parser.programa() #con el arbol vamos a crear el codigo intermedio
-    #print(tree.toStringTree(recog=parser))
-    #caminante = Walker()
-    #caminante.visitPrograma(tree)
-    
+    # print(tree.toStringTree(recog=parser))
+    # si hay algun error, debera detenerse la ejecucion y no se construira el codigo intermedio
+    if not escucha.error:
+        caminante = Walker()
+        try:
+            caminante.visit(tree)
+        except Exception as e:
+            logging.error(f'Error en Walker: {e}')
+            print('Ha ocurrido un error en Walker, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')
+    else:
+        logging.error('Ha ocurrido un error, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')
 
 if __name__ == '__main__':
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except Exception as e:
+        logging.error(f'Error inesperado: {e}')
+        print('Ha ocurrido un error, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')

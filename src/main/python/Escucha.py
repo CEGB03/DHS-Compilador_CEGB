@@ -11,6 +11,7 @@ class Escucha (compiladoresListener) :
     numTokens = 0 #tokens son las hojas
     numNodos = 0
     tabla = TablaSimbolos.get_instancia()
+    error = False
     def enterPrograma(self, ctx:compiladoresParser.ProgramaContext):
         print("\t\tComienza la compilacion")
         #print(self.tabla.__str__())
@@ -65,6 +66,7 @@ class Escucha (compiladoresListener) :
                 print("\033[1;33m" + f"Línea {linea}: Advertencia: La variable '{nombreVariable}' es redeclarada en el contexto actual." + "\033[0m")
         else:
             print("\033[1;31m" + f"Línea {linea}: ERROR SEMÁNTICO: La variable '{nombreVariable}' fue declarada previamente en el contexto local." + "\033[0m")
+            self.error = True
             return
         
         
@@ -112,7 +114,7 @@ class Escucha (compiladoresListener) :
         self.tabla.del_Contexto()
 
     def exitFuncionVar(self, ctx):
-        nombreFuncion= ctx.getChild(0).getText().split('(')[0].strip() 
+        nombreFuncion = ctx.getChild(0).getText().split('(')[0].strip() 
         #Guarde solo lo que estaba antes del parentesis porque sino guardaba todo el choclo y despues no coincidia
         linea = ctx.start.line
         args = ctx.getChild(2).getText().split(',')
@@ -124,12 +126,13 @@ class Escucha (compiladoresListener) :
                 busquedaGlobalArgs = self.tabla.buscar_global(args[i])
                 if (busquedaGlobalArgs is not None and busquedaGlobalArgs.get_tipoDato() != busquedaGlobal.args[i]):
                     print("\033[1;31m"+ f"Línea {linea}: ERROR SEMANTICO: Los tipos de datos ("+ busquedaGlobalArgs.nombre+") ingresados no coinciden!"+ "\033[0m")
+                    self.error = True
                     return
             if len(args) != len(busquedaGlobal.args):
                 print("\033[1;31m"+ f"Línea {linea}: ERROR SEMANTICO: La cantidad de datos ingresados no coinciden!"+ "\033[0m")
+                self.error = True
                 return
-            else:#A CHEQUEAR
-                busquedaGlobal.set_usado()
+            # no la marcamos como usada porque se encarga la asignacion
                             
         
     def enterProtofun(self, ctx: compiladoresParser.ProtofunContext):
@@ -155,8 +158,10 @@ class Escucha (compiladoresListener) :
             self.tabla.add_identificador(funcion)
         elif busquedaLocal is not None:
             print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La función '{nombreFuncion}' ya está declarada en el contexto local." + "\033[0m")
+            self.error = True
         elif busquedaGlobal is not None:
             print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La función '{nombreFuncion}' ya está declarada en el contexto global." + "\033[0m")
+            self.error = True
         print("\t" + ctx.getText())
         
     def exitInic(self, ctx):
@@ -165,6 +170,7 @@ class Escucha (compiladoresListener) :
         # Verificar que la declaración termine con ';'
         if not ctx.getText().endswith(";"):
             print("\033[1;31m" + f"Línea {linea}: ERROR SINTACTICO: La declaración debe terminar con ';'." + "\033[0m")
+            self.error = True
             return
         
         # Si el nombre de la variable contiene un '=', extraemos solo el nombre
@@ -184,8 +190,10 @@ class Escucha (compiladoresListener) :
             self.tabla.add_identificador(variable)
         elif busquedaLocal is not None:
             print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La variable '{nombreVariable}' ya está declarada en el contexto local." + "\033[0m")
+            self.error = True
         elif busquedaGlobal is not None:
             print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La variable '{nombreVariable}' ya está declarada en el contexto global." + "\033[0m")
+            self.error = True
 
     def exitAsignacion(self, ctx):
         operacion = ctx.getChild(0).getText()
@@ -201,6 +209,7 @@ class Escucha (compiladoresListener) :
             # Asegurarse de que la variable izquierda está declarada
             if busquedaLocalIzquierda is None and busquedaGlobalIzquierda is None:
                 print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La variable '{nombreVariableIzquierda}' no fue declarada previamente." + "\033[0m")
+                self.error = True
                 return
             
             # Obtener el tipo de la variable izquierda
@@ -228,8 +237,14 @@ class Escucha (compiladoresListener) :
                     # Verificar que la variable esté declarada
                     if busquedaLocalDerecha is None and busquedaGlobalDerecha is None:
                         print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: La variable '{termino}' no fue declarada previamente." + "\033[0m")
+                        self.error = True
                         return
-
+                    else:
+                        # Marcar la variable como usada
+                        if busquedaLocalDerecha is not None:
+                            busquedaLocalDerecha.set_usado()
+                        else:
+                            busquedaGlobalDerecha.set_usado()
                     # Obtener el tipo de la variable derecha
                     tipoDerecha = (busquedaLocalDerecha.tipoDato if busquedaLocalDerecha else busquedaGlobalDerecha.tipoDato)
 
@@ -238,24 +253,15 @@ class Escucha (compiladoresListener) :
                         print("\033[1;33m" + f"Línea {linea}: Advertencia: No se puede asignar un valor de tipo '{tipoDerecha}' a una variable de tipo '{tipoIzquierda}'." + "\033[0m")
                         return
                     
-                    # Marcar la variable como usada
-                    if busquedaLocalDerecha:
-                        busquedaLocalDerecha.set_usado()
-                    else:
-                        busquedaGlobalDerecha.set_usado()
                 else:
                     # Error si no es un número ni una variable válida
                     print("\033[1;31m" + f"Línea {linea}: ERROR SEMANTICO: El término '{termino}' no es válido en la expresión de asignación." + "\033[0m")
+                    self.error = True
                     return
 
             # Si todos los términos son válidos, proceder con la asignación
             print("\033[1;32m" + f"Línea {linea}: Asignación válida: '{nombreVariableIzquierda}' = '{expresionDerecha}'." + "\033[0m")
             
-            # Marcar la variable izquierda como usada
-            if busquedaLocalIzquierda is not None:
-                busquedaLocalIzquierda.set_usado()
-            else:
-                busquedaGlobalIzquierda.set_usado()
 
     def enterDeffuncion(self, ctx:compiladoresParser.DeffuncionContext):
         print("\t\tENTER FUNCION")
@@ -273,6 +279,7 @@ class Escucha (compiladoresListener) :
     def visitErrorNode(self, node: ErrorNode):
         print("\033[1;31m" +" ERROR SINTACTICO"+ "\033[0m")
         print(node.getText())
+        self.error = True
         
     def enterEveryRule(self, ctx):
         self.numNodos += 1

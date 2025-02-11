@@ -1,0 +1,37 @@
+temp0 = 1
+x = temp0
+temp1 = 0
+a = temp1
+temp2 = TRUE
+c = temp2
+temp3 = 0
+d = temp3
+label label0
+temp4 = x < 0
+ifn temp4 jmp label1
+jmp label0
+label label1
+temp5 = i == 1
+ifn temp5 jmp label2
+label label3
+temp6 = x < 10
+ifn temp6 jmp label4
+temp7 = 1
+y = temp7
+jmp label3
+label label4
+jmp label5
+label label2
+temp8 = 2
+temp10 = a
+temp11 = temp10 + temp8
+temp9 = temp9 + temp11
+d = temp7
+label label5
+temp12 = 2
+push label7
+jmp label6
+label label7
+temp14 = temp12 + temp7
+temp13 = temp13 + temp14
+y = temp3
