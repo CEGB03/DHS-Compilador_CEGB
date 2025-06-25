@@ -1,0 +1,37 @@
+Dessarrollo de Herramientas de Software — Trabajo Práctico
+Maximiliano A. Eschoyez
+Fecha de Entrega: Lunes 4 de Noviembre de 2024
+Resumen
+El objetivo de este Trabajo Práctico es implementar el análisis léxico, sintáctico
+y semántico, con la incorporación de la tabla de símbolos y el reporte de errores.
+El programa a desarrollar para esta etapa tiene como objetivo tomar un archivo de código fuente en una versión reducida del lenguaje C, posiblemente con
+errores léxicos, sintácticos y semánticos, y generar como salida el árbol Sintáctico (ANTLR) y la Tabla de Símbolos y reporte de errores.
+Consigna
+Dado un archivo de entrada en lenguaje C, se debe generar como salida el Árbol
+Sintáctico (ANTLR) correcto y mostrar por consola o archivo el contenido de la Tabla de
+Símbolos de cada contexto. Esto es válido únicamente cuando el archivo de entrada es
+correcto.
+Se deberá realizar un control de errores básicos y generar un reporte de lo encontrado
+para poder analizar archivos con posibles errores de codificación. El reporte de errores
+podrá realizarse por consola o archivo de texto. Los errores a detectar deben ser los siguientes:
+Errores sintácticos comunes:
+• Falta de un punto y coma,
+• Falta de apertura de paréntesis,
+• Formato incorrecto en lista de declaración de variables
+Errores semánticos comunes:
+• Doble declaración del mismo identificador,
+• Uso de un identificador no declarado,
+• Uso de un identificador sin inicializar,
+• Identificador declarado pero no usado,
+• Tipos de datos incompatibles.
+Cada error reportado debe indicarse si es sintáctico o semántico.
+Presentación del Trabajo Práctico
+Código Fuente
+El código fuente deberá entregarse a través de la actividad correspondiente en el Aula
+Viirtual. En dicho enlace se deberá subir un único archivo en formato ZIP conteniendo el
+proyecto ANTLR que responde a los requerimientos de realización del trabajo práctico
+(sólo código fuente y archivos de prueba).
+El proyecto a entregar debe responder a las pautas utilizadas en clase, consistentes en
+un proyecto en Python y ANTLR gestionado con Maven y Git para seguimiento de los
+cambios. Se deberá copiar en el Aula Virtual el enlace al repositorio en GitHub que aloja
+al proyecto. No olvidar etiquetar (tag) el commit correspondiente como TP.

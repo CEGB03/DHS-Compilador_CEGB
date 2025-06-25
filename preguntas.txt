@@ -1,5 +1,0 @@
-Como integra la tabla de simbolos?
-Nos falta alguna regla? ademas de las reglas de las funciones
-Los errores se manejan con la tabla de simbolos?
-Como hacer el chequeo de tipo de dato?
-Floats??

@@ -1,20 +1,21 @@
 from compiladoresVisitor import compiladoresVisitor
 from compiladoresParser import compiladoresParser
+import os
 
 class Temporales:
     def __init__(self):
         self.counter = 0
     def next_temporal(self):
-        temporal = f'temp{self.counter}'
+        temporal = f't{self.counter}'
         self.counter += 1
         return temporal
 
 class Etiquetas:
-    funciones = dict()
-    counter = 0
-
+    def __init__(self):
+        self.counter = 0
+        self.funciones = dict()
     def next_etiqueta(self):
-        etiqueta = f'label{self.counter}'
+        etiqueta = f'l{self.counter}'
         self.counter += 1
         return etiqueta
 
@@ -38,9 +39,16 @@ class Walker (compiladoresVisitor):
     labels = Etiquetas()
     isFuncion = 0
     inFuncion = 0
+    indent_level = 0
     
     def visitPrograma(self, ctx: compiladoresParser.ProgramaContext):
-        print("=-"*20) # hace esto 20 veces
+        # Verifica si hay errores antes de generar el código intermedio
+        if os.path.exists("./output/Errores&Warnings.txt"):
+            with open("./output/Errores&Warnings.txt") as errfile:
+                if "ERROR" in errfile.read():
+                    print("\033[1;31m"+"--- No se generó ningún código intermedio por errores ---"+"\033[0m")
+                    return
+        print("=-"*20)
         print("\033[1;32m"+"--- Generado codigo intermedio ---"+"\033[0m")
         self.f = open("./output/CodigoIntermedio.txt", "w")
         
@@ -137,29 +145,30 @@ class Walker (compiladoresVisitor):
 
                 
     def visitBools(self, ctx:compiladoresParser.BoolsContext):
-        if ctx.getChild(0) is not None:
-            operador = ctx.getChild(0).getText()
-            self.visit(ctx.opbool())
-            derecha = self.temporales.pop()
+        # Si hay operador lógico (&&, ||, etc.)
+        if ctx.getChildCount() == 3:
+            # Estructura: opbool operador opbool
+            self.visit(ctx.opbool(0))
             izquierda = self.temporales.pop()
+            operador = ctx.getChild(1).getText()
+            self.visit(ctx.opbool(1))
+            derecha = self.temporales.pop()
             temporal = self.temps.next_temporal()
             self.f.write(f'{temporal} = {izquierda} {operador} {derecha}\n')
             self.temporales.append(temporal)
-            
-        return self.temporales[-1]
-            
+        else:
+            # Caso base: solo un opbool, el temporal ya está en la pila
+            self.visit(ctx.opbool(0))
             
             
     def visitFactorBool(self, ctx: compiladoresParser.FactorBoolContext):
-        if ctx.TRUE():  # Si es `true`
-            temporal = self.temps.next_temporal()
-            self.f.write(f'{temporal} = 1\n')  # Asigna 1 como verdadero
-            self.temporales.append(temporal)
-        elif ctx.FALSE():  # Si es `false`
-            temporal = self.temps.next_temporal()
-            self.f.write(f'{temporal} = 0\n')  # Asigna 0 como falso
-            self.temporales.append(temporal)    
-    
+        temporal = self.temps.next_temporal()
+        if ctx.TRUE():
+            self.f.write(f'{temporal} = 1\n')
+        elif ctx.FALSE():
+            self.f.write(f'{temporal} = 0\n')
+        self.temporales.append(temporal)
+
     def visitAsignacionNum(self, ctx:compiladoresParser.AsignacionNumContext):
         # print("asigNum?? "+ctx.getText()) # esto entro sin que implemente asignacion...
         if self.inFuncion == 1:
@@ -179,43 +188,32 @@ class Walker (compiladoresVisitor):
     def visitExp(self, ctx:compiladoresParser.ExpContext):
         self.visit(ctx.term())
         if ctx.expPrima().getText() != "":
-            temporal = self.temps.next_temporal()
-            self.temporales.append(temporal)
-            derecha = self.temporales.pop()
-            if ctx.expPrima().getChild(1) is not None:
-                operador = ctx.expPrima().getChild(0).getText()  # Obtiene el operador
-                self.visit(ctx.expPrima())  # Visita el resto de la expresión
-                self.f.write(f'{temporal} = {derecha} {operador} {self.temporales.pop()}\n')
-                return
-            else:
-                self.f.write(f'{temporal} = {derecha}\n')
-    
-    def visitExpPrima(self, ctx:compiladoresParser.ExpPrimaContext):
-        if ctx.getChild(0) is not None:
-            operador = ctx.getChild(0).getText()
-            self.visit(ctx.exp())
-            temporal = self.temps.next_temporal()
-            self.f.write(f'{temporal} = {self.temporales.pop()} {operador} {self.temporales.pop()}\n')
-            self.temporales.append(temporal)
-    
-    def visitTerm(self, ctx:compiladoresParser.TermContext):
-        self.visit(ctx.factor())  # Visita el factor inicial
-        if ctx.t().getChildCount() != 0:  # Si hay más términos
-            operador = ctx.getChild(1).getText()
-            self.visit(ctx.t())
-            temporal = self.temps.next_temporal()
-            self.f.write(f'{temporal} = {self.temporales.pop()} {operador} {self.temporales.pop()}\n')
-            self.temporales.append(temporal)
-    
-    def visitT(self, ctx:compiladoresParser.TContext):
-        if ctx.getChildCount() != 0:
-            operador = ctx.getChild(0).getText()
-            self.visit(ctx.factor())
+            self.visit(ctx.expPrima())
             derecha = self.temporales.pop()
             izquierda = self.temporales.pop()
+            operador = ctx.expPrima().getChild(0).getText()
             temporal = self.temps.next_temporal()
             self.f.write(f'{temporal} = {izquierda} {operador} {derecha}\n')
             self.temporales.append(temporal)
+
+    def visitExpPrima(self, ctx:compiladoresParser.ExpPrimaContext):
+        if ctx.getChildCount() > 0:
+            self.visit(ctx.exp())
+
+    def visitTerm(self, ctx:compiladoresParser.TermContext):
+        self.visit(ctx.factor())
+        if ctx.t().getChildCount() != 0:
+            self.visit(ctx.t())
+            derecha = self.temporales.pop()
+            izquierda = self.temporales.pop()
+            operador = ctx.t().getChild(0).getText()
+            temporal = self.temps.next_temporal()
+            self.f.write(f'{temporal} = {izquierda} {operador} {derecha}\n')
+            self.temporales.append(temporal)
+
+    def visitT(self, ctx:compiladoresParser.TContext):
+        if ctx.getChildCount() != 0:
+            self.visit(ctx.factor())
             self.visit(ctx.t())
         
         return self.temporales[-1]
@@ -232,28 +230,37 @@ class Walker (compiladoresVisitor):
             self.temporales.append(temporal)
         
     def visitFuncionVar(self, ctx:compiladoresParser.FuncionVarContext):
-        self.visit(ctx.ids())  # Visita los argumentos de la función
-        etiquetas = self.labels.etiqueta_funcion(ctx.ID().getText())  # Genera etiquetas
+        args = ctx.ids().getText().split(',')
+        for arg in reversed([a.strip() for a in args if a.strip()]):
+            self.f.write(f'push {arg}\n')
+        etiquetas = self.labels.etiqueta_funcion(ctx.ID().getText())
         self.f.write(f'push {etiquetas[1]}\n')
         self.f.write(f'jmp {etiquetas[0]}\n')
         self.f.write(f'label {etiquetas[1]}\n')
-        self.isFuncion = 0
-    
+        temp = self.temps.next_temporal()
+        self.f.write(f'pop {temp}\n')
+        self.temporales.append(temp)
+
     def visitDeffuncion(self, ctx:compiladoresParser.DeffuncionContext):
-        if ctx.ID().getText() != 'main':  # Si no es la función principal
-            self.inFuncion = 1
-            etiquetas = self.labels.etiqueta_funcion(ctx.funcion().ID().getText())
-            self.f.write(f'label {etiquetas[0]}\n')
-
-            if ctx.funcion().argumentos():  # Si hay argumentos
-                self.visit(ctx.argumentos())
-
-            self.f.write(f'pop {etiquetas[1]}\n')
-            self.visit(ctx.instrucciones())
-            self.f.write(f'jmp {etiquetas[1]}\n')
-            self.inFuncion = 0
-        else:  # Si es la función principal
-            self.visit(ctx.instrucciones())
+        etiquetas = self.labels.etiqueta_funcion(ctx.funcion().ID().getText())
+        self.f.write(f'label {etiquetas[0]}\n')
+        self.f.write(f'pop t0\n')  # dirección de retorno
+    
+        # Pop de argumentos en orden inverso
+        args = []
+        if ctx.funcion().argumentos():
+            args = [arg.ID().getText() for arg in ctx.funcion().argumentos().argumento()]
+            for arg in reversed(args):
+                self.f.write(f'pop {arg}\n')
+    
+        # Cuerpo de la función
+        self.inFuncion = 1
+        self.visit(ctx.bloque())
+        self.inFuncion = 0
+    
+        # El resultado debe estar en un temporal o variable, aquí se asume t1
+        self.f.write(f'push t1\n')  # resultado
+        self.f.write(f'jmp t0\n')
     
     def visitReturnfun(self, ctx:compiladoresParser.ReturnfunContext):
         if self.inFuncion == 1:
@@ -262,7 +269,7 @@ class Walker (compiladoresVisitor):
             else:
                 self.visit(ctx.exp())
                 self.f.write(f'push {self.temporales.pop()}\n')
-                      
+
     def visitBloque(self, ctx:compiladoresParser.BloqueContext):
         if ctx.instrucciones():  # Caso: Varias instrucciones
             self.visit(ctx.instrucciones())
@@ -270,22 +277,26 @@ class Walker (compiladoresVisitor):
             self.visit(ctx.instruccion())
     
     def visitIif(self, ctx:compiladoresParser.IifContext):
-        self.visit(ctx.cond())  # Visita la condición
+        self.visit(ctx.cond())
+        temp_cond = self.temporales.pop()
         etiqueta_else = self.labels.next_etiqueta()
-        
-        # Genera el salto condicional al bloque else (si existe)
-        self.f.write(f'ifn {self.temporales.pop()} jmp {etiqueta_else}\n')
-        self.visit(ctx.bloque())  # Visita el bloque del `if`
-
+        # Salto condicional
+        self.write(f'ifnjmp {temp_cond}, {etiqueta_else}\n')
+        etiqueta_fin = None
+        self.indent_level += 1
+        self.visit(ctx.bloque())
+        self.indent_level -= 1
         if ctx.else_():
             etiqueta_fin = self.labels.next_etiqueta()
-            self.f.write(f'jmp {etiqueta_fin}\n')
+            self.write(f'jmp {etiqueta_fin}\n')
             self.f.write(f'label {etiqueta_else}\n')
-            self.visit(ctx.else_())  # Visita el bloque del `else`
+            self.indent_level += 1
+            self.visit(ctx.else_())
+            self.indent_level -= 1
             self.f.write(f'label {etiqueta_fin}\n')
         else:
             self.f.write(f'label {etiqueta_else}\n')
-           
+
     def visitElse(self, ctx:compiladoresParser.ElseContext):
         if ctx.bloque():
             self.visit(ctx.bloque())
@@ -295,19 +306,14 @@ class Walker (compiladoresVisitor):
     def visitIwhile(self, ctx:compiladoresParser.IwhileContext):
         etiqueta_inicio = self.labels.next_etiqueta()
         etiqueta_fin = self.labels.next_etiqueta()
-
-        # Escribe la etiqueta de inicio del ciclo
         self.f.write(f'label {etiqueta_inicio}\n')
-        self.visit(ctx.cond())  # Visita la condición
-
-        # Salta al final si la condición es falsa
-        self.f.write(f'ifn {self.temporales.pop()} jmp {etiqueta_fin}\n')
-        self.visit(ctx.bloque())  # Visita el bloque del `while`
-
-        # Salta al inicio del ciclo para repetir
-        self.f.write(f'jmp {etiqueta_inicio}\n')
-
-        # Escribe la etiqueta del final del ciclo
+        self.indent_level += 1
+        self.visit(ctx.cond())
+        temp_cond = self.temporales.pop()
+        self.write(f'ifnjmp {temp_cond}, {etiqueta_fin}\n')
+        self.visit(ctx.bloque())
+        self.write(f'jmp {etiqueta_inicio}\n')
+        self.indent_level -= 1
         self.f.write(f'label {etiqueta_fin}\n')
     
     def visitIfor(self, ctx: compiladoresParser.IforContext):
@@ -351,19 +357,20 @@ class Walker (compiladoresVisitor):
         # Agregar el temporal a la pila
         self.temporales.append(temp)
 
-    def visitOpbool(self, ctx):
-        if ctx.factorBool():  # Es un valor booleano simple (TRUE/FALSE)
-            bool_value = ctx.factorBool().getText()
-            temp = self.temps.next_temporal()
-            self.f.write(f"{temp} = {bool_value}\n")
-            self.temporales.append(temp)
-        elif ctx.bools():  # Es una operación booleana (AND, OR)
+    def visitOpbool(self, ctx: compiladoresParser.OpboolContext):
+        if ctx.factorBool():
+            self.visit(ctx.factorBool())
+            # El temporal ya fue generado en visitFactorBool y está en la pila
+        elif ctx.bools():
             self.visit(ctx.bools())
+            # El temporal de la operación booleana está en la pila
         else:
             raise Exception("Error: Operación booleana inválida.")
-
     
     
     def visitErrorNode(self, node):
         print("---- ERROR ----")
         return super().visitErrorNode(node)
+    
+    def write(self, text):
+        self.f.write('    ' * self.indent_level + text + '\n')

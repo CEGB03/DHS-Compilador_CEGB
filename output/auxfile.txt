@@ -2,31 +2,24 @@ t0 = 1
 x = t0
 t1 = 0
 a = t1
-t2 = 1
-c = t2
+c = t0
 t3 = 0.3
 d = t3
 label l0
 t4 = x < 0
-    ifnjmp t4, l1
-
-    jmp l0
-
+ifnjmp t4, l1
+jmp l0
 label l1
 t5 = i == 1
 ifnjmp t5, l2
-
 label l3
 t6 = x < 10
-        ifnjmp t6, l4
-
+ifnjmp t6, l4
 t7 = 1
 y = t7
-        jmp l3
-
+jmp l3
 label l4
 jmp l5
-
 label l2
 t8 = 2
 t9 = a

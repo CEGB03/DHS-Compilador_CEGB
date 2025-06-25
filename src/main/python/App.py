@@ -1,14 +1,22 @@
 import sys
 import logging
 import os
+import glob
 from antlr4 import *
 from compiladoresLexer import compiladoresLexer
 from compiladoresParser import compiladoresParser
 from Escucha import Escucha
 from Walker import Walker
+from Optimizador import Optimizador
+
 
 # Crear el directorio output si no existe
 os.makedirs('./output', exist_ok=True)
+
+# Borrar todos los archivos de la carpeta output y recrearlos vacíos
+for archivo in glob.glob('./output/*'):
+    with open(archivo, 'w', encoding='utf-8') as f:
+        pass
 
 # Configurar el logger
 logging.basicConfig(filename='./output/Errores&Warnings.txt', level=logging.ERROR, 
@@ -19,12 +27,20 @@ sys.stderr = open('./output/Errores&Warnings.txt', 'a')
 
 def main(argv):
     archivo = "input/opal.txt"
-    if len(argv) > 1 :
+    if len(argv) > 1:
         archivo = argv[1]
-    input = FileStream(archivo)
-    lexer = compiladoresLexer(input) #cuando encuentra algo parecido a una regla, devuelve un token
-    stream = CommonTokenStream(lexer) #acumula esos tokens
-    parser = compiladoresParser(stream) #pide mas tokens, hasta que termine o encuentre un error
+    else:
+        print("¿Desea ejecutar el archivo por defecto (input/opal.txt)? [S/n]")
+        respuesta = input().strip().lower()
+        if respuesta == "n":
+            archivo = input("Ingrese el path del archivo a ejecutar: ").strip()
+            if not archivo:
+                print("No se ingresó archivo, se usará el archivo por defecto.")
+                archivo = "input/opal.txt"
+    input_stream = FileStream(archivo, encoding='utf-8')
+    lexer = compiladoresLexer(input_stream)
+    stream = CommonTokenStream(lexer)
+    parser = compiladoresParser(stream)
     escucha = Escucha()
     parser.addParseListener(escucha)
     tree = parser.programa() #con el arbol vamos a crear el codigo intermedio
@@ -34,6 +50,10 @@ def main(argv):
         caminante = Walker()
         try:
             caminante.visit(tree)
+            opt = Optimizador()
+            opt.optimizar()
+            
+
         except Exception as e:
             logging.error(f'Error en Walker: {e}')
             print('Ha ocurrido un error en Walker, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')

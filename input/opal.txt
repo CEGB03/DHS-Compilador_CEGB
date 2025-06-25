@@ -3,7 +3,7 @@ int f(int y);
 int y;
 int a = 0;
 bool c = TRUE;
-double d = 0;
+double d = 0.3;
 
 while (x < 0) {
     int y;
@@ -17,4 +17,10 @@ if (i == 1) {
     d = 2 + a;
 }
 int xy(bool argA, int argB);
-y = 2 + xy(52, a);
+y = 2 + xy(52, a) + y + d;
+int z = a + y;
+z = 3;
+bool e;
+d = 2.25;
+c = TRUE && FALSE;
+e = FALSE || TRUE;

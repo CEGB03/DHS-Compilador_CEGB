@@ -29,6 +29,7 @@ TRUE: 'TRUE';
 FALSE: 'FALSE';
 
 NUMERO : DIGITO+ ;
+FLOATNUM : DIGITO+ '.' DIGITO+ ;
 
 INT: 'int';
 BOOL: 'bool';
@@ -111,6 +112,7 @@ t    : MULT factor t
     |
     ;
 factor: NUMERO
+      | FLOATNUM
       | ID
       | funcionVar
       | PA exp PC
