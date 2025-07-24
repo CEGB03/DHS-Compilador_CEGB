@@ -1,43 +1,62 @@
------------- Comienza la compilacion -------------
-Declarada Variable: int x: Inicializado? True, Usado? False en línea 1
+Comienza la compilacion
+Línea 1: La variable 'x' se declaró e inicializó en el contexto actual.
 Declarada Función: int f: Prototipado? True en línea 2
-Declarada Variable: int y: Inicializado? False, Usado? False en línea 3
-Declarada Variable: int a: Inicializado? True, Usado? False en línea 4
-Declarada Variable: bool c: Inicializado? True, Usado? False en línea 5
-Declarada Variable: double d: Inicializado? True, Usado? False en línea 6
-Enter WHILE
-    Advertencia: redeclarada Variable: int y: Inicializado? False, Usado? False en línea 9
-FIN WHILE
-ENTER IF
-    Enter WHILE
-        Modificada Variable: int y: Inicializado? True, Usado? False en línea 14
-    FIN WHILE
-    ENTER ELSE
-        Usada Variable: int a: Inicializado? True, Usado? True en línea 17
-        Modificada Variable: double d: Inicializado? True, Usado? False en línea 17
-    EXIT ELSE
-EXIT IF
-Declarada Función: int xy: Prototipado? True en línea 19
-Usada Función: int xy: Prototipado? True, Usado? True en línea 20
-Usada Variable: int a: Inicializado? True, Usado? True en línea 20
-Usada Variable: double d: Inicializado? True, Usado? True en línea 20
-Modificada Variable: int y: Inicializado? True, Usado? False en línea 20
-Declarada Variable: int z: Inicializado? True, Usado? False en línea 21
-Modificada Variable: int z: Inicializado? True, Usado? False en línea 22
-Declarada Variable: bool e: Inicializado? False, Usado? False en línea 23
-Modificada Variable: double d: Inicializado? True, Usado? True en línea 24
-Modificada Variable: bool c: Inicializado? True, Usado? False en línea 25
-Modificada Variable: bool e: Inicializado? True, Usado? False en línea 26
-------------- Fin de la compilacion --------------
+Argumentos:  [('int', 'y')]
+Línea 3: La variable 'y' se declaró e inicializó en el contexto actual.
+Línea 3: La variable 'j' se declaró en el contexto actual.
+Línea 4: La variable 'a' se declaró e inicializó en el contexto actual.
+Línea 5: La variable 'c' se declaró e inicializó en el contexto actual.
+Línea 6: La variable 'd' se declaró e inicializó en el contexto actual.
+while (...)
+Línea 9: Asignación válida: 'y' = '0'.
+// FIN WHILE
+if (...)
+{
+	while (...)
+	{
+		Línea 13: Asignación válida: 'y' = '1'.
+	}
+	// FIN WHILE
+}
+else
+{
+	Línea 16: Asignación válida: 'd' = '2+d'.
+}
+// EXIT ELSE
+// EXIT IF
+Declarada Función: int xy: Prototipado? True en línea 18
+Argumentos:  [('bool', 'argA'), ('int', 'argB')]
+Línea 19: La variable 'z' se declaró e inicializó en el contexto actual.
+xy(c, a)
+Línea 20: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
+Línea 21: Asignación válida: 'z' = '3'.
+Línea 22: La variable 'e' se declaró e inicializó en el contexto actual.
+Línea 23: Asignación válida: 'd' = '2.25'.
+Línea 24: Asignación válida: 'c' = 'TRUE&&FALSE'.
+Línea 25: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
+def funcion
+	{
+		if (...)
+		else
+		// EXIT ELSE
+		// EXIT IF
+	}
+	Línea 27: Definición de función 'xy' completada.
+// EXIT FUNCION
+Fin de la compilacion
 
---- Variables y funciones declaradas ---
-Contexto Global:
-    Variable: int x: Inicializado? True, Usado? False
-    Función: int f: Inicializado? False, Usado? False
-    Variable: int y: Inicializado? True, Usado? False
-    Variable: int a: Inicializado? True, Usado? True
-    Variable: bool c: Inicializado? True, Usado? False
-    Variable: double d: Inicializado? True, Usado? True
-    Función: int xy: Inicializado? False, Usado? True
-    Variable: int z: Inicializado? True, Usado? False
-    Variable: bool e: Inicializado? True, Usado? False
+
+Tabla de Simbolos:
+Contexto Global: 
+Variable: int x: Inicializado? True, Usado? False
+Función: int f(args=[('int', 'y')]) | Prototipado? Sí, Desarrollado? No, Usado? No
+Variable: int y: Inicializado? True, Usado? True
+Variable: int j: Inicializado? False, Usado? False
+Variable: int a: Inicializado? True, Usado? True
+Variable: bool c: Inicializado? True, Usado? True
+Variable: double d: Inicializado? True, Usado? True
+Función: int xy(args=[('bool', 'argA'), ('int', 'argB')]) | Prototipado? Sí, Desarrollado? Sí, Usado? Sí
+Variable: int z: Inicializado? True, Usado? True
+Variable: bool e: Inicializado? True, Usado? False
+
+

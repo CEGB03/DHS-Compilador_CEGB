@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 
 class ID(ABC):
-    args = []
+    #args = []
     @abstractmethod
     def __init__(self, nombre, tipoDato, inicializado=False, usado=False, declarado=True):
         self.nombre = nombre
@@ -28,15 +28,26 @@ class Variable(ID):
         return "Variable: "+super().__str__()
 
 class Funcion(ID):
-    args = []
+    #args = []
     def __init__(self, nombre, tipoDato, inicializado=False, usado=False, declarado=True):
         super().__init__(nombre, tipoDato, inicializado, usado, declarado)
+        self.prototipado = False
+        self.args = []
 
     def set_args(self, args):
-        self.args = args  
+        self.args = args.copy() if args else []
+
+    def set_usado(self):
+        self.usado = True
+    
+
     def __str__(self):
-        return "Función: "+super().__str__()
-          
+        prototipado = "Sí" if self.prototipado else "No"
+        desarrollado = "Sí" if self.inicializado else "No"
+        usado = "Sí" if self.usado else "No"
+        return (f"Función: {self.tipoDato} {self.nombre}("
+                f"args={self.args}) | Prototipado? {prototipado}, "
+                f"Desarrollado? {desarrollado}, Usado? {usado}")
 class Contexto:
     """
     Contexto son las anidaciones
@@ -90,7 +101,7 @@ class TablaSimbolos:
         """
         Agrega un nuevo contexto a la tabla de simbolos
         """
-        print("Agregando contexto ......")
+        #print("Agregando contexto ......")
         #print("Instancia: "+ self.get_instancia().getText())
         nuevoContexto = Contexto(nombreContexto)
         self.contextos.append(nuevoContexto)
@@ -133,18 +144,21 @@ class TablaSimbolos:
         return "Tabla de Simbolos:\n" + ctx_repr
     
     def mostrarVarsSinUsar(self):
-        # Filtrar las variables que no han sido usadas
+        # Filtrar las variables y funciones desarrolladas que no han sido usadas
         vars_sin_usar = ""
         for contexto in self.contextos:
             for id in contexto.ids.values():
-                if not id.usado:  # Verificar si la variable no ha sido usada
-                    vars_sin_usar += id.__str__()+"\n"
-        
+                # Solo reportar variables no usadas o funciones desarrolladas no usadas
+                if not id.usado:
+                    if isinstance(id, Funcion):
+                        # Solo mostrar si está desarrollada (definida)
+                        if not id.prototipado:
+                            vars_sin_usar += id.__str__()+"\n"
+                    else:
+                        vars_sin_usar += id.__str__()+"\n"
         # Imprimir las variables sin usar
         if vars_sin_usar != "":
             print("Variables sin usar:")
-            # for id in vars_sin_usar:
-            #     print(id)  # Esto llamará al método _str_ de la clase ID
             print(vars_sin_usar)
         else:
             print("No hay variables sin usar.")

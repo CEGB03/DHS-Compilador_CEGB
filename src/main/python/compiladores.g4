@@ -3,181 +3,225 @@ grammar compiladores;
 fragment LETRA : [A-Za-z] ;
 fragment DIGITO : [0-9] ;
 
-PA : '('; //esto puede ser una expresion especifica
-PC : ')'; //esto puede ser una expresion especifica
-PYC : ';';
-LLA : '{';
-LLC : '}';
-COMA: ',';
-PUNTO: '.';
+//INST : (LETRA | DIGITO | [- ,;{}()+=>] )+ '\n'; es una letra, un digito .. no quiero que exceda el guion 
+PA: '(';
+PC: ')';
+LLA: '{';
+LLC: '}';
+PYC: ';';
+C: ',';
+PTO : '.';
+COMILLA : '\'';
+//Operadores matematicos
+SUMA: '+';
+RESTA: '-';
+MULT: '*';
+DIV: '/';
+MOD: '%';
+INC:'++';
+DEC: '--';
 
+//Operadores logicos
+AND: '&&';
+OR: '||';
+IGUAL: '==';
+NOT: '!=';
 ASIG : '=';
-IGUAL : '==';
-SUMA: '+' ;
-RESTA: '-' ;
-MULT: '*' ;
-DIV: '/' ;
-MOD: '%' ;
-MAY: '>' ;
-MEN: '<' ;
-MAYI: '>=' ;
-MENI: '<=' ;
-OR: '||' ;
-AND: '&&' ;
-
-TRUE: 'TRUE';
-FALSE: 'FALSE';
+MENOR : '<';
+MAYOR : '>';
+MEI : '<=';
+MAI : '>=';
 
 NUMERO : DIGITO+ ;
-FLOATNUM : DIGITO+ '.' DIGITO+ ;
-
-INT: 'int';
-BOOL: 'bool';
-FLOAT: 'float';
-DOUBLE: 'double';
-VOID: 'void';
-
-WHILE: 'while';
+DECIMAL : DIGITO+ PTO DIGITO+    // 123.456
+        | PTO DIGITO+            // .456
+        | DIGITO+ PTO            // 123.
+        ;
+CARACTER : COMILLA (LETRA|DIGITO|) COMILLA ;
+WHILE :'while';
 FOR: 'for';
 IF: 'if';
 ELSE: 'else';
-RETURN: 'return';
+RETURN : 'return';
 
-BOOLEANS: TRUE
-        | FALSE
-        ;
+//tipo de dato
+INT:'int';
+FLOAT: 'float';
+DOUBLE: 'double';
+CHAR: 'char';
+VOID: 'void';
+BOOL : 'bool';
 
-ID: (LETRA | '_')(LETRA | DIGITO | '_')*; //expresion regular
+//saltarse todo tipo de espacio
+WS : [ \t\n\r] -> skip;
 
-WS: [ \t\n\r] -> skip;
-OTRO : . ;//por si no entra en ninguna regla; si no esta esto lo toma como un error lexico
+//varables
+ID : (LETRA | '_')(LETRA | DIGITO | '_')* ;
 
-// analisis sintactico:
-si : s EOF; //veo desde la raiz; simbolo inicial
+TRUE : 'TRUE';
+FALSE : 'FALSE';
 
-s : PA s PC s
+/*OTRO : . ;
+
+
+
+//control tokens
+s : ID     {print("ID ->" + $ID.text + "<--") }         s
+  | NUMERO {print("NUMERO ->" + $NUMERO.text + "<--") } s
+  | OTRO   {print("Otro ->" + $OTRO.text + "<--") }     s
+  | EOF
+  ;
+  */
+
+//si : s EOF; que comience en un nodo, que sea solo la razi del arbol
+//s: PA s PC s  s permite la anidacion, se cierra un parentesis y se puede abrirotro parentesis. Verifica balance de parentesis
+
+
+//programa
+programa : instrucciones EOF ; //secuencia de instrucciones hasta el final del archivo
+
+instrucciones : instruccion instrucciones //es una instruccion con mas instrucciones 
+                |
+                ;
+instruccion: declaracion PYC
+            | iwhile
+            | bloque
+            | ifor
+            | iif
+            | asignacion PYC
+            | ifuncion
+            | ireturn
+            | illamada PYC
+            | iprototipo
+            ;
+
+declaracion : tipo ID dec
+            | tipo asignacion dec
+            ;
+
+dec : C ID dec
+    | C asignacion dec
+    |
+    ;
+
+tipo  : (INT | VOID | FLOAT | DOUBLE | CHAR | BOOL);
+
+asignacion: asignacionNum
+           | asignacionBool
+           ;
+
+asignacionNum : ID ASIG exp;
+asignacionBool : ID ASIG opbool;
+
+opal : exp ; 
+
+exp : lor ;
+
+lor: land a ;
+a : OR land a
   |
   ;
 
-programa: instrucciones EOF;
+land : inot l ;
+l : AND inot l
+  |
+  ;
 
-instrucciones : instruccion instrucciones
-              |
-              ;
-instruccion : declaracionPYC
-            | iwhile
-            | ifor
-            | iif
-            | asignacionPYC
-            | protofun
-            | inic
-            | returnfun PYC
-            | bloqueSolo //porque puede ser un bloque solo
-            | deffuncion
-            | llamadafun
-            ;
-bloqueSolo : LLA instrucciones LLC;
-inic: tipoDatos asignacionNum PYC
-    | tipoDatos asignacionBool PYC;
-declaracion : tipoDatos ID;
-tipoDatos: BOOL
-          | INT
-          | FLOAT
-          | DOUBLE
-          ; 
-declaracionPYC: declaracion PYC;
-asignacionNum : ID ASIG exp;
+inot : comp n ;
+n : NOT comp n
+  | IGUAL comp n
+  |
+  ;
 
-asignacionPYC: asignacion PYC;
+comp : op c ;
+c : MAYOR op c
+  | MENOR op c
+  | MAI op c
+  | MEI op c
+  |
+  ;
 
-asignacion : asignacionNum
-            | asignacionBool
-            ;
+op : term e ;
 
+e : SUMA term e
+  | RESTA term e
+  |
+  ; 
 
-ifor : FOR PA init PYC cond PYC iter PC bloque;
-init : asignacionNum;
+term : factor t ;
+t : MULT factor t 
+  | DIV factor t
+  | MOD factor t
+  |
+  ;
 
-exp: term expPrima;
+factor : NUMERO 
+       | ID
+       | DECIMAL
+       | CARACTER
+       | PA exp PC
+       | illamada
+       ;
 
-expPrima: SUMA exp
-        | RESTA exp
-        | //Esto es una regla vacia, para cuando no hay mas terminos para operar
-        ;
+iwhile  :  WHILE PA cond PC instruccion ;
 
-term: factor t ;
-t    : MULT factor t
-    | DIV factor t
-    | MOD factor t
-    |
-    ;
-factor: NUMERO
-      | FLOATNUM
-      | ID
-      | funcionVar
-      | PA exp PC
-      ;
-funcionVar: ID PA ids PC;
-ids: (ID | NUMERO | BOOLEANS ) iden
-   |
-   ;
-iden : COMA ids
+cond  : opal;
+
+bloque  :  LLA instrucciones LLC; 
+
+ifor  : FOR PA  init  PYC condlist PYC iter PC  instruccion;
+
+init  : asignacion
       |
       ;
 
-iwhile : WHILE PA cond PC bloque;
-
-bloque : LLA instrucciones LLC
-       | instruccion
-       ;
-
-comps: MEN
-      | MAY
-      | MENI
-      | MAYI
-      | IGUAL
+condlist  : cond
+          |
+          ;
+iter  : asignacion
+      |
       ;
-bools: OR opbool
+
+iif : IF PA cond PC instruccion
+    | IF PA cond PC instruccion ielse;
+
+ielse : ELSE instruccion;
+
+iprototipo : tipo ID PA protoparam PC PYC ;
+
+protoparam : tipo ID C protoparam
+           | tipo ID
+           | tipo 
+           |
+           ;
+
+ifuncion  : tipo ID PA param PC bloque;
+
+param : p C param
+      | p
+      |
+      ;
+
+p : tipo ID;
+
+ireturn : RETURN opal PYC;
+
+illamada : ID PA argumento PC;
+
+argumento : opal
+          | opal C argumento
+          |
+          ;
+
+opbool : factorBool bools ;
+
+factorBool : TRUE
+           | FALSE
+           | ID
+           | PA opbool PC
+           ;
+
+bools : OR opbool
       | AND opbool
       |
       ;
-factorBool: TRUE
-          | FALSE
-          ;
-asignacionBool : ID ASIG opbool;
-opbool : factorBool bools ;
-opcomp : ID comps factor;
-
-cond : opcomp cond// si quiero que la condicion tenga una operacion algebraica DEBE ESTAR ENTRE PARENTESIS
-      | opbool cond
-      |
-      ;
-iter: ID ASIG ID iteracion; //i = i+1;
-iteracion: SUMA NUMERO
-          | RESTA NUMERO
-          | MULT NUMERO
-          | DIV NUMERO
-          ;
-iif: IF PA cond PC bloque
-   | IF PA cond PC bloque else;
-else: ELSE bloque
-    | ELSE iif
-    ;
-
-funcion: ID PA argumentos PC;
-return: tipoDatos
-      | VOID
-      ;
-returnfun: RETURN exp
-         | RETURN VOID
-         ;
-protofun: return funcion PYC;
-deffuncion: return funcion LLA instrucciones LLC;
-llamadafun: funcionVar;
-argumentos: argumento arg
-          |
-          ;
-arg : COMA argumentos
-    |
-    ;
-argumento: tipoDatos ID;

@@ -1,5 +1,7 @@
 import os
 import logging
+import sys
+import re
 
 from Squeleton import TablaSimbolos, Variable
 
@@ -10,20 +12,362 @@ class Optimizador:
         
     def optimizar(self):
         auxfile = "output/auxfile.txt"
-        inroute = "output/CodigoIntermedio.txt"
+        inroute = "output/codigoIntermedio.txt"
         outroute = "output/codigoIntermedioOptimizado.txt"
+        
+        # Verificar existencia del archivo de entrada
+        if not os.path.exists(inroute):
+            print(f"\033[1;31mError: No se encuentra el archivo {inroute}\033[0m")
+            return False
+            
         # Asegurar que el directorio de salida existe
         os.makedirs(os.path.dirname(auxfile), exist_ok=True)
-        # Crear el archivo auxfile.txt si no existe
-        open(auxfile, 'a').close()
         
-        self.eliminar_acciones_repetidas(inroute, auxfile)
-        self.propagacion_de_constantes(auxfile, outroute)
-        self.eliminar_lineas_vacias(outroute)
-        self.eliminar_lineas_vacias(auxfile)
-        # Eliminar el archivo auxfile.txt al finalizar
-        #os.remove(auxfile)
+        try:
+            self.eliminar_comentarios(inroute)
+
+            print("\033[1;33m--- Iniciando optimización de código intermedio (3 pasadas) ---\033[0m")
+            
+            # PRIMERA VUELTA - Optimización completa
+            print("🔄 Pasada 1/3: Eliminación inicial + Propagación")
+            self.eliminar_acciones_repetidas(inroute, auxfile)
+            self.propagacion_de_constantes_mejorada(auxfile, outroute)
+            self.eliminar_lineas_vacias(outroute)
+            self.eliminar_lineas_vacias(auxfile)
+            
+            # SEGUNDA VUELTA - Tratar como si fuera la primera
+            print("🔄 Pasada 2/3: Re-optimización completa")
+            self.eliminar_acciones_repetidas_mejorada(outroute, auxfile)
+            self.propagacion_de_constantes_mejorada(auxfile, outroute)
+            self.reemplazar_valores_cocidos(outroute, auxfile)
+            self.propagacion_de_constantes_mejorada(auxfile, outroute)
+            self.eliminar_lineas_vacias(outroute)
+            self.eliminar_lineas_vacias(auxfile)
+            
+            # TERCERA VUELTA - Optimización final
+            print("🔄 Pasada 3/3: Optimización final")
+            self.eliminar_acciones_repetidas_mejorada(outroute, auxfile)
+            self.propagacion_de_constantes_mejorada(auxfile, outroute)
+            self.optimizar_operaciones_complejas(outroute, auxfile)
+            self.propagacion_de_constantes_mejorada(auxfile, outroute)
+            self.eliminar_lineas_vacias(outroute)
+            
+            # Limpieza final
+#            if os.path.exists(auxfile):
+#                os.remove(auxfile)
+            
+            # Limpiar comentarios
+            self.eliminar_comentarios(outroute)
+                
+            print(f"\033[1;32m✓ Optimización completada exitosamente en: {outroute}\033[0m")
+            return True
+            
+        except Exception as e:
+            print(f"\033[1;31mError durante optimización: {str(e)}\033[0m")
+            print(f"Detalles del error: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def reemplazar_valores_cocidos(self, inroute, outroute):
+        """
+        Nueva función: Reemplaza valores inicializados que no son alterados
+        """
+        with open(inroute, "r") as infile, open(outroute, "w") as outfile:
+            self.findventanas_oportunidad(infile)
+            valores_cocidos = {}  # Variables con valores fijos
+            alterados = set()     # Variables que fueron modificadas
+            
+            cod = infile.readlines()
+            
+            # Primera pasada: identificar valores cocidos y alteraciones
+            for line in cod:
+                linevector = line.split()
+                if len(linevector) > 2 and linevector[1] == "=":
+                    variable = linevector[0]
+                    
+                    # Si es una asignación directa de constante
+                    if (len(linevector) == 3 and 
+                        self.is_numeric_value(linevector[2]) and
+                        self.is_terminal(variable)):
+                        
+                        if variable not in alterados:
+                            valores_cocidos[variable] = linevector[2]
+                        else:
+                            # Ya fue alterada, remover de cocidos
+                            valores_cocidos.pop(variable, None)
+                    else:
+                        # Cualquier otra asignación marca como alterada
+                        alterados.add(variable)
+                        valores_cocidos.pop(variable, None)
+            
+            # Segunda pasada: aplicar reemplazos
+            for line in cod:
+                linevector = line.split()
+                if len(linevector) > 0:
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] = linevector[1][:-1]
+                    
+                    # Reemplazar valores cocidos en toda la línea
+                    for i in range(len(linevector)):
+                        if linevector[i] in valores_cocidos:
+                            linevector[i] = valores_cocidos[linevector[i]]
+                    
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] += ","
+                        
+                outfile.write(" ".join(linevector) + "\n")
+
+    def optimizar_operaciones_complejas(self, inroute, outroute):
+        """
+        Nueva función: Optimiza operaciones complejas como y = a + s + f + q + f * ea - as / as
+        """
+        with open(inroute, "r") as infile, open(outroute, "w") as outfile:
+            self.findventanas_oportunidad(infile)
+            
+            cod = infile.readlines()
+            operaciones_complejas = {}  # Mapea expresiones complejas
+            
+            for line in cod:
+                linevector = line.split()
+                if len(linevector) > 0:
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] = linevector[1][:-1]
+                    
+                    # Detectar y optimizar operaciones complejas
+                    if (len(linevector) > 4 and linevector[1] == "=" and
+                        self.contiene_operacion_compleja(linevector[2:])):
+                        
+                        expresion = " ".join(linevector[2:])
+                        variable = linevector[0]
+                        
+                        # Intentar simplificar la expresión compleja
+                        expresion_simplificada = self.simplificar_expresion_compleja(expresion)
+                        
+                        if expresion_simplificada != expresion:
+                            # La expresión fue simplificada
+                            linevector = [variable, "="] + expresion_simplificada.split()
+                            print(f"🔧 Operación compleja optimizada: {expresion} → {expresion_simplificada}")
+                    
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] += ","
+                        
+                outfile.write(" ".join(linevector) + "\n")
+
+    def contiene_operacion_compleja(self, tokens):
+        """
+        Detecta si una secuencia de tokens contiene una operación compleja
+        """
+        operadores = {'+', '-', '*', '/', '%'}
+        operador_count = sum(1 for token in tokens if token in operadores)
+        return operador_count >= 3  # 3 o más operadores = operación compleja
+
+    def simplificar_expresion_compleja(self, expresion):
+        """
+        Simplifica expresiones complejas aplicando reglas matemáticas
+        """
+        try:
+            # Evaluar si toda la expresión son constantes
+            tokens = expresion.split()
+            all_numeric = True
+            
+            for i, token in enumerate(tokens):
+                if i % 2 == 0:  # Posiciones pares deben ser números
+                    if not self.is_numeric_value(token):
+                        all_numeric = False
+                        break
+                else:  # Posiciones impares deben ser operadores
+                    if token not in {'+', '-', '*', '/', '%'}:
+                        all_numeric = False
+                        break
+            
+            if all_numeric:
+                # Toda la expresión son constantes, evaluarla
+                resultado = eval(expresion)
+                if isinstance(resultado, bool):
+                    resultado = 1 if resultado else 0
+                return str(resultado)
+            else:
+                # Aplicar simplificaciones algebraicas básicas
+                return self.aplicar_simplificaciones_algebraicas(expresion)
+                
+        except:
+            return expresion  # Si hay error, devolver expresión original
+
+    def aplicar_simplificaciones_algebraicas(self, expresion):
+        """
+        Aplica simplificaciones algebraicas básicas
+        """
+        # Simplificaciones como: x + 0 = x, x * 1 = x, x * 0 = 0, etc.
+        expresion = re.sub(r'\b(\w+)\s*\+\s*0\b', r'\1', expresion)  # x + 0 = x
+        expresion = re.sub(r'\b0\s*\+\s*(\w+)\b', r'\1', expresion)  # 0 + x = x
+        expresion = re.sub(r'\b(\w+)\s*\*\s*1\b', r'\1', expresion)  # x * 1 = x
+        expresion = re.sub(r'\b1\s*\*\s*(\w+)\b', r'\1', expresion)  # 1 * x = x
+        expresion = re.sub(r'\b(\w+)\s*\*\s*0\b', '0', expresion)    # x * 0 = 0
+        expresion = re.sub(r'\b0\s*\*\s*(\w+)\b', '0', expresion)    # 0 * x = 0
+        expresion = re.sub(r'\b(\w+)\s*-\s*0\b', r'\1', expresion)   # x - 0 = x
         
+        return expresion
+
+    def eliminar_acciones_repetidas_mejorada(self, inroute, auxfile):
+        """
+        Versión mejorada que considera patrones más complejos de repetición
+        """
+        with open(inroute, "r") as infile, open(auxfile, "w+") as outfile:
+            self.findventanas_oportunidad(infile)
+            acciones = {}  # expresión → variable que la contiene
+            sustitutos = {}  # variable → su equivalente optimizado
+            expresiones_complejas = {}  # Para operaciones de múltiples pasos
+            
+            cod = infile.readlines()
+            infile.seek(0)
+            
+            for index, line in enumerate(cod, start=1):
+                linevector = line.split()
+                if len(linevector) > 0:
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] = linevector[1][:-1]
+                    
+                    # Sustituir variables por sus equivalentes
+                    sustituido = False
+                    for i in range(1, len(linevector)):
+                        if linevector[i] in sustitutos:
+                            linevector[i] = sustitutos[linevector[i]]
+                            sustituido = True
+                    
+                    # Procesar asignaciones
+                    if len(linevector) > 1 and linevector[1] == "=":
+                        accion = " ".join(linevector[2:])
+                        variable = linevector[0]
+                        
+                        # Generar clave normalizada para la acción
+                        accion_normalizada = self.normalizar_expresion(accion)
+                        
+                        if self.is_terminal(variable):
+                            # Variables terminales invalidan temporales relacionados
+                            self.limpiar_diccionario_mejorado(acciones, variable)
+                            self.limpiar_diccionario_mejorado(expresiones_complejas, variable)
+                        elif not sustituido:
+                            # Buscar expresión equivalente
+                            if accion_normalizada in acciones:
+                                sustitutos[variable] = acciones[accion_normalizada]
+                                continue  # No escribir esta línea
+                            else:
+                                acciones[accion_normalizada] = variable
+                                # Para operaciones complejas, también guardar la original
+                                if self.contiene_operacion_compleja(accion.split()):
+                                    expresiones_complejas[accion] = variable
+                    
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] += ","
+                        
+                outfile.write(" ".join(linevector) + "\n")
+                self.control_eliminacion(index, acciones, sustitutos)
+
+    def normalizar_expresion(self, expresion):
+        """
+        Normaliza expresiones para detectar equivalencias
+        Ejemplo: "a + b" y "b + a" se normalizan igual
+        """
+        tokens = expresion.split()
+        
+        # Para operaciones simples binarias, normalizar orden
+        if len(tokens) == 3 and tokens[1] in ['+', '*']:
+            # Operaciones conmutativas: ordenar operandos
+            if tokens[0] > tokens[2]:
+                return f"{tokens[2]} {tokens[1]} {tokens[0]}"
+        
+        return expresion
+
+    def limpiar_diccionario_mejorado(self, diccionario, valor):
+        """
+        Versión mejorada que limpia más efectivamente
+        """
+        diccionario_copy = diccionario.copy()
+        for clave in diccionario_copy:
+            # Buscar la variable en cualquier parte de la expresión
+            if re.search(r'\b' + re.escape(valor) + r'\b', clave):
+                diccionario.pop(clave)
+
+    def propagacion_de_constantes_mejorada(self, auxfile, outroute):
+        """
+        Versión mejorada de propagación de constantes con mejor manejo de tipos
+        """
+        with open(auxfile, "r") as infile, open(outroute, "w+") as outfile:
+            self.findventanas_oportunidad(infile)
+            valores = {}  # variable → valor constante
+            tipos_variables = {}  # variable → tipo de dato
+            
+            cod = infile.readlines()
+            
+            for index, line in enumerate(cod, start=1):
+                linevector = line.split()
+                if len(linevector) > 0:
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] = linevector[1][:-1]
+                    
+                    # Sustituir valores conocidos
+                    sustituido = False
+                    for i in range(1, len(linevector)):
+                        if linevector[i] in valores:
+                            linevector[i] = valores[linevector[i]]
+                            sustituido = True
+                            
+                            # Ajustar tipo si es necesario
+                            if len(linevector) > 0 and self.is_terminal(linevector[0]):
+                                myvar = self.tabla.buscar_global(linevector[0])
+                                if isinstance(myvar, Variable):
+                                    tipos_variables[linevector[0]] = myvar.tipoDato
+                                    if myvar.tipoDato == "int":
+                                        try:
+                                            linevector[i] = str(int(float(linevector[i])))
+                                        except:
+                                            pass
+                    
+                    # Procesar nuevas asignaciones
+                    if len(linevector) > 1 and linevector[1] == "=" and not sustituido:
+                        variable = linevector[0]
+                        
+                        # Asignación de constante simple
+                        if len(linevector) == 3 and self.is_numeric_value(linevector[2]):
+                            valores[variable] = linevector[2]
+                            if not self.is_terminal(variable):
+                                continue
+                        
+                        # Operación entre constantes
+                        elif (len(linevector) > 3 and 
+                              all(self.is_numeric_value(linevector[i]) for i in range(2, len(linevector), 2))):
+                            try:
+                                # Evaluar toda la expresión
+                                expresion = " ".join(linevector[2:])
+                                resultado = eval(expresion)
+                                
+                                # Manejar resultado booleano
+                                if isinstance(resultado, bool):
+                                    resultado = 1 if resultado else 0
+                                
+                                # Aplicar tipo si se conoce
+                                if variable in tipos_variables and tipos_variables[variable] == "int":
+                                    resultado = int(resultado)
+                                
+                                valores[variable] = str(resultado)
+                                
+                                # Reemplazar línea con resultado
+                                linevector = [variable, "=", str(resultado)]
+                                
+                            except ZeroDivisionError:
+                                print(f"\033[1;33m⚠️  División por cero detectada en línea {index}\033[0m")
+                                # Continuar sin optimizar
+                            except Exception as e:
+                                # Error en evaluación, continuar sin optimizar
+                                pass
+                    
+                    if linevector[0] == "ifnjmp":
+                        linevector[1] += ","
+                        
+                outfile.write(" ".join(linevector) + "\n")
+                self.control_propagacion(index, valores)
+
     def findventanas_oportunidad(self, infile):
         self.ventanas.clear()
         cod = infile.readlines()
@@ -60,13 +404,14 @@ class Optimizador:
             current = cod[i].split()
             next = cod[i + 1].split()
             nnext = cod[i + 2].split()
-            if next[0] == "jmp":
-                if nnext and nnext[0] == "label" and nnext[1] == current[1]:
+            if len(next) > 0 and next[0] == "jmp":
+                if len(nnext) > 1 and nnext[0] == "label" and len(current) > 1 and nnext[1] == current[1]:
                     return True
         return False
     
     def close_ventana(self, lnum):
-        self.ventanas[-1].append(lnum)
+        if self.ventanas:
+            self.ventanas[-1].append(lnum)
     
     def enter_ventana(self, lnum):
         if len(self.ventanas) > 0:
@@ -78,26 +423,39 @@ class Optimizador:
             self.ventanas.append([lnum])
     
     def control_propagacion(self, currentline, valores):
-        for start, end in self.ventanas:
-            if currentline < end:
-                return
-            if currentline == end:
-                valores.clear()
-                self.ventanas.pop(0)
-                return
+        i = 0
+        while i < len(self.ventanas):
+            ventana = self.ventanas[i]
+            if len(ventana) >= 2:
+                start, end = ventana[0], ventana[1]
+                if currentline < end:
+                    return
+                if currentline == end:
+                    valores.clear()
+                    self.ventanas.pop(i)
+                    return
+            i += 1
     
     def control_eliminacion(self, currentline, acciones, sustitutos):
-        for start, end in self.ventanas:
-            if currentline < end:
-                return
-            if currentline == end:
-                acciones.clear()
-                sustitutos.clear()
-                self.ventanas.pop(0)
-                return
+        i = 0
+        while i < len(self.ventanas):
+            ventana = self.ventanas[i]
+            if len(ventana) >= 2:
+                start, end = ventana[0], ventana[1]
+                if currentline < end:
+                    return
+                if currentline == end:
+                    acciones.clear()
+                    sustitutos.clear()
+                    self.ventanas.pop(i)
+                    return
+            i += 1
     
     def is_numeric_value(self, val: str):
+        if not val:
+            return False
         val = val.replace('.', '', 1)
+        val = val.replace('-', '', 1)  # Permitir números negativos
         return val.isdigit()
     
     def limpiar_diccionario(self, diccionario, valor):
@@ -106,11 +464,13 @@ class Optimizador:
             if valor in accion:
                 diccionario.pop(accion)
     
-    def is_terminal(self, line):
-        variable = line[0]
-        if variable[0] == "t" and variable[1:].isdigit():
-            return False
-        return True
+    def is_terminal(self, variable: str):
+        """
+        MEJORA: Distingue correctamente entre variables temporales y terminales
+        Una variable terminal es cualquier variable que no es temporal
+        """
+        # Una variable temporal comienza con 't' seguido de dígitos
+        return not (variable.startswith("t") and variable[1:].isdigit())
 
     def eliminar_acciones_repetidas(self, inroute, auxfile):
         with open(inroute, "r") as infile, open(auxfile, "w+") as outfile:
@@ -132,7 +492,7 @@ class Optimizador:
                     if len(linevector) > 1 and linevector[1] == "=":
                         accion = " ".join(linevector[2:])
                         variable = linevector[0]
-                        if self.is_terminal(linevector):
+                        if self.is_terminal(variable):
                             self.limpiar_diccionario(acciones, variable)
                         elif not sustituido:
                             if accion in acciones:
@@ -151,46 +511,78 @@ class Optimizador:
             valores = dict()
             cod = infile.readlines()
             for index, line in enumerate(cod, start=1):
-                linevector = line.split()
-                if len(linevector) > 0:
-                    if linevector[0] == "ifnjmp":
-                        linevector[1] = linevector[1][:-1]
+                lienvector = line.split()
+                if len(lienvector) > 0:
+                    if lienvector[0] == "ifnjmp":
+                        lienvector[1] = lienvector[1][:-1]
                     sustituido = False
-                    for i in range(1, len(linevector)):
-                        if linevector[i] in valores:
-                            linevector[i] = valores[linevector[i]]
+                    for i in range(1, len(lienvector)):
+                        if lienvector[i] in valores:
+                            lienvector[i] = valores[lienvector[i]]
                             sustituido = True
-                            if self.is_terminal(linevector[0]):
-                                myvar = self.tabla.buscar_global(linevector[0])
-                                if isinstance(myvar, Variable) and myvar.tipoDato == "INT":
-                                    linevector[i] = str(int(float(linevector[i])))
-                    if len(linevector) > 1 and linevector[1] == "=" and not sustituido:
-                        if len(linevector) == 3 and self.is_numeric_value(linevector[-1]):
-                            valores[linevector[0]] = linevector[2]
-                            if not self.is_terminal(linevector):
+                            if self.is_terminal(lienvector[0]):
+                                myvar = self.tabla.buscar_global(lienvector[0])
+                                if isinstance(myvar, Variable) and myvar.tipoDato.lower() == "int":
+                                    lienvector[i] = str(int(float(lienvector[i])))
+                    if len(lienvector) > 1 and lienvector[1] == "=" and not sustituido:
+                        if len(lienvector) == 3 and self.is_numeric_value(lienvector[-1]):
+                            valores[lienvector[0]] = lienvector[2]
+                            if not self.is_terminal(lienvector[0]):
                                 continue
-                        elif len(linevector) > 3 and self.is_numeric_value(linevector[2]) and self.is_numeric_value(linevector[4]):
+                        elif len(lienvector) > 3 and self.is_numeric_value(lienvector[2]) and self.is_numeric_value(lienvector[4]):
                             try:
-                                resul = eval(" ".join(linevector[2:]))
+                                resul = eval(" ".join(lienvector[2:]))
                             except ZeroDivisionError:
-                                logging.error(f"Error durante optimizacion: Division por cero detectada en línea: {' '.join(linevector)}")
-                                return  # o continue, según el contexto
+                                print(f"\033[1;33m⚠️  División por cero detectada en línea {index}\033[0m")
+                                continue
                             if type(resul) == bool:
                                 resul = 1 if resul else 0
-                            del linevector[2:]
-                            linevector.append(str(resul))
-                    if linevector[0] == "ifnjmp":
-                        linevector[1] += ","
-                outfile.write(" ".join(linevector) + "\n")
+                            del lienvector[2:]
+                            lienvector.append(str(resul))
+                    if lienvector[0] == "ifnjmp":
+                        lienvector[1] += ","
+                outfile.write(" ".join(lienvector) + "\n")
                 self.control_propagacion(index, valores)
 
     def eliminar_lineas_vacias(self, archivo):
         """
         Elimina las líneas vacías de un archivo dado.
         """
-        with open(archivo, "r") as f:
-            lineas = f.readlines()
-        with open(archivo, "w") as f:
+        try:
+            with open(archivo, "r") as f:
+                lineas = f.readlines()
+            with open(archivo, "w") as f:
+                for linea in lineas:
+                    if linea.strip():  # Solo escribe si la línea no está vacía
+                        f.write(linea)
+        except Exception as e:
+            print(f"\033[1;33m⚠️  Error eliminando líneas vacías de {archivo}: {str(e)}\033[0m")
+    
+    def eliminar_comentarios(self, archivo):
+        """
+        Elimina todas las líneas que empiecen con // del archivo especificado
+        """
+        try:
+            with open(archivo, "r") as f:
+                lineas = f.readlines()
+            
+            # Filtrar líneas que no empiecen con //
+            lineas_sin_comentarios = []
+            comentarios_eliminados = 0
+            
             for linea in lineas:
-                if linea.strip():  # Solo escribe si la línea no está vacía
-                    f.write(linea)
+                linea_stripped = linea.strip()
+                if linea_stripped.startswith("//"):
+                    comentarios_eliminados += 1
+                else:
+                    lineas_sin_comentarios.append(linea)
+            
+            # Escribir de vuelta el archivo sin comentarios
+            with open(archivo, "w") as f:
+                f.writelines(lineas_sin_comentarios)
+            
+            if comentarios_eliminados > 0:
+                print(f"🧹 Eliminados {comentarios_eliminados} comentarios del código optimizado")
+            
+        except Exception as e:
+            print(f"\033[1;33m⚠️  Error eliminando comentarios de {archivo}: {str(e)}\033[0m")

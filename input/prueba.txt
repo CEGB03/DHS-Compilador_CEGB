@@ -1,6 +1,4 @@
-int z=1;
-while(x<0){
-    y=5;
-}else
-    while(x<10)
-        y=+1;
+int y=0;
+int d=5;
+int xy(bool argA, int argB);
+y = 2 + xyz(a) + y + d + e;

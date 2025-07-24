@@ -8,6 +8,7 @@ from compiladoresParser import compiladoresParser
 from Escucha import Escucha
 from Walker import Walker
 from Optimizador import Optimizador
+import traceback
 
 
 # Crear el directorio output si no existe
@@ -56,6 +57,7 @@ def main(argv):
 
         except Exception as e:
             logging.error(f'Error en Walker: {e}')
+            traceback.print_exc()  # <-- agrega esto para ver el stacktrace en consola
             print('Ha ocurrido un error en Walker, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')
     else:
         logging.error('Ha ocurrido un error, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio')
