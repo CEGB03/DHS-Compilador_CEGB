@@ -1,6 +1,6 @@
-1 = 1
+x = 1
 y = 0
-0 = 0
+a = 0
 c = TRUE
 d = 0.3
 label l0
@@ -13,36 +13,36 @@ label l1
 t11 = i == 1
 ifnjmp t11, l2
 label l3
-ifnjmp 1, l4
+ifnjmp t13, l4
 y = 1
 jmp l3
 label l4
 jmp l5
 label l2
-t16 = 2 + d
+t16 = 2 + 0.3
 d = t16
 label l5
-t17 = d + 0
-t18 = t17 + y
+t17 = t16 + 0
+t18 = t17 + 1
 z = t18
 push 0
-push c
+push TRUE
 push l7
 jmp l6
 label l7
 pop t20
 t21 = 2 + t20
-t22 = t21 + z
-t23 = t22 + y
-t24 = t23 + d
+t22 = t21 + t18
+t23 = t22 + 1
+t24 = t23 + t16
 y = t24
 z = 3
 e = c
 d = 2.25
-t27 = TRUE && FALSE
+t27 = FALSE
 c = t27
-t28 = FALSE || TRUE
-t29 = t28 || TRUE
+t28 = TRUE
+t29 = TRUE
 e = t29
 label l6
 pop t0

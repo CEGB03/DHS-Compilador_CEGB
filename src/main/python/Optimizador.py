@@ -1,6 +1,5 @@
 import os
 import logging
-import sys
 import re
 
 from Squeleton import TablaSimbolos, Variable
@@ -34,7 +33,7 @@ class Optimizador:
             self.propagacion_de_constantes_mejorada(auxfile, outroute)
             self.eliminar_lineas_vacias(outroute)
             self.eliminar_lineas_vacias(auxfile)
-            
+
             # SEGUNDA VUELTA - Tratar como si fuera la primera
             print("🔄 Pasada 2/3: Re-optimización completa")
             self.eliminar_acciones_repetidas_mejorada(outroute, auxfile)
@@ -43,7 +42,7 @@ class Optimizador:
             self.propagacion_de_constantes_mejorada(auxfile, outroute)
             self.eliminar_lineas_vacias(outroute)
             self.eliminar_lineas_vacias(auxfile)
-            
+
             # TERCERA VUELTA - Optimización final
             print("🔄 Pasada 3/3: Optimización final")
             self.eliminar_acciones_repetidas_mejorada(outroute, auxfile)
@@ -52,13 +51,23 @@ class Optimizador:
             self.propagacion_de_constantes_mejorada(auxfile, outroute)
             self.eliminar_lineas_vacias(outroute)
             
-            # Limpieza final
-#            if os.path.exists(auxfile):
-#                os.remove(auxfile)
-            
             # Limpiar comentarios
             self.eliminar_comentarios(outroute)
-                
+            # --- POSTPROCESADO FINAL ---
+            # Leer el código optimizado
+            with open(outroute, "r") as f:
+                codigo = f.readlines()
+
+            # Aplicar las optimizaciones extra
+            #codigo = self.eliminacion_codigo_inalcanzable(codigo)
+            codigo = self.simplificacion_condiciones(codigo)
+            codigo = self.propagacion_de_copias(codigo)
+
+            # Guardar el resultado final
+            with open(outroute, "w") as f:
+                for linea in codigo:
+                    f.write(linea if linea.endswith('\n') else linea + '\n')
+ 
             print(f"\033[1;32m✓ Optimización completada exitosamente en: {outroute}\033[0m")
             return True
             
@@ -69,9 +78,29 @@ class Optimizador:
             traceback.print_exc()
             return False
 
+    def optimizar_postprocesado(self):
+        inroute = "output/codigoIntermedioOptimizado.txt"
+        outroute = "output/codigoIntermedioOptimizado.txt"
+    
+        # 1. Leer el código intermedio como lista de líneas
+        with open(inroute, "r") as f:
+            codigo = f.readlines()
+    
+        # 2. Aplicar las optimizaciones
+        codigo = self.eliminacion_codigo_inalcanzable(codigo)
+        codigo = self.simplificacion_condiciones(codigo)
+        codigo = self.propagacion_de_copias(codigo)
+    
+        # 3. Guardar el resultado
+        with open(outroute, "w") as f:
+            for linea in codigo:
+                f.write(linea if linea.endswith('\n') else linea + '\n')
+    
+        print(f"\033[1;32m✓ Optimización postprocesado completada en: {outroute}\033[0m")
+
     def reemplazar_valores_cocidos(self, inroute, outroute):
         """
-        Nueva función: Reemplaza valores inicializados que no son alterados
+        Reemplaza valores inicializados que no son alterados
         """
         with open(inroute, "r") as infile, open(outroute, "w") as outfile:
             self.findventanas_oportunidad(infile)
@@ -109,9 +138,10 @@ class Optimizador:
                         linevector[1] = linevector[1][:-1]
                     
                     # Reemplazar valores cocidos en toda la línea
-                    for i in range(len(linevector)):
-                        if linevector[i] in valores_cocidos:
-                            linevector[i] = valores_cocidos[linevector[i]]
+                    if len(linevector) > 2 and linevector[1] == "=":
+                        for i in range(2, len(linevector)):
+                            if linevector[i] in valores_cocidos:
+                                linevector[i] = valores_cocidos[linevector[i]]
                     
                     if linevector[0] == "ifnjmp":
                         linevector[1] += ","
@@ -120,7 +150,7 @@ class Optimizador:
 
     def optimizar_operaciones_complejas(self, inroute, outroute):
         """
-        Nueva función: Optimiza operaciones complejas como y = a + s + f + q + f * ea - as / as
+        Optimiza operaciones complejas como y = a + s + f + q + f * ea - as / as
         """
         with open(inroute, "r") as infile, open(outroute, "w") as outfile:
             self.findventanas_oportunidad(infile)
@@ -148,10 +178,10 @@ class Optimizador:
                             # La expresión fue simplificada
                             linevector = [variable, "="] + expresion_simplificada.split()
                             print(f"🔧 Operación compleja optimizada: {expresion} → {expresion_simplificada}")
-                    
+
                     if linevector[0] == "ifnjmp":
                         linevector[1] += ","
-                        
+                    
                 outfile.write(" ".join(linevector) + "\n")
 
     def contiene_operacion_compleja(self, tokens):
@@ -213,7 +243,7 @@ class Optimizador:
         """
         Versión mejorada que considera patrones más complejos de repetición
         """
-        with open(inroute, "r") as infile, open(auxfile, "w+") as outfile:
+        with open(inroute, "r") as infile, open(auxfile, "w") as outfile:
             self.findventanas_oportunidad(infile)
             acciones = {}  # expresión → variable que la contiene
             sustitutos = {}  # variable → su equivalente optimizado
@@ -230,7 +260,7 @@ class Optimizador:
                     
                     # Sustituir variables por sus equivalentes
                     sustituido = False
-                    for i in range(1, len(linevector)):
+                    for i in range(2, len(linevector)):
                         if linevector[i] in sustitutos:
                             linevector[i] = sustitutos[linevector[i]]
                             sustituido = True
@@ -260,7 +290,7 @@ class Optimizador:
                     
                     if linevector[0] == "ifnjmp":
                         linevector[1] += ","
-                        
+                    
                 outfile.write(" ".join(linevector) + "\n")
                 self.control_eliminacion(index, acciones, sustitutos)
 
@@ -293,7 +323,7 @@ class Optimizador:
         """
         Versión mejorada de propagación de constantes con mejor manejo de tipos
         """
-        with open(auxfile, "r") as infile, open(outroute, "w+") as outfile:
+        with open(auxfile, "r") as infile, open(outroute, "w") as outfile:
             self.findventanas_oportunidad(infile)
             valores = {}  # variable → valor constante
             tipos_variables = {}  # variable → tipo de dato
@@ -308,7 +338,7 @@ class Optimizador:
                     
                     # Sustituir valores conocidos
                     sustituido = False
-                    for i in range(1, len(linevector)):
+                    for i in range(2, len(linevector)):
                         if linevector[i] in valores:
                             linevector[i] = valores[linevector[i]]
                             sustituido = True
@@ -336,7 +366,7 @@ class Optimizador:
                         
                         # Operación entre constantes
                         elif (len(linevector) > 3 and 
-                              all(self.is_numeric_value(linevector[i]) for i in range(2, len(linevector), 2))):
+                                all(self.is_numeric_value(linevector[i]) for i in range(2, len(linevector), 2))):
                             try:
                                 # Evaluar toda la expresión
                                 expresion = " ".join(linevector[2:])
@@ -364,7 +394,7 @@ class Optimizador:
                     
                     if linevector[0] == "ifnjmp":
                         linevector[1] += ","
-                        
+                    
                 outfile.write(" ".join(linevector) + "\n")
                 self.control_propagacion(index, valores)
 
@@ -466,14 +496,14 @@ class Optimizador:
     
     def is_terminal(self, variable: str):
         """
-        MEJORA: Distingue correctamente entre variables temporales y terminales
+        Distingue correctamente entre variables temporales y terminales
         Una variable terminal es cualquier variable que no es temporal
         """
         # Una variable temporal comienza con 't' seguido de dígitos
         return not (variable.startswith("t") and variable[1:].isdigit())
 
     def eliminar_acciones_repetidas(self, inroute, auxfile):
-        with open(inroute, "r") as infile, open(auxfile, "w+") as outfile:
+        with open(inroute, "r") as infile, open(auxfile, "w") as outfile:
             self.findventanas_oportunidad(infile)
             acciones = dict()
             sustitutos = dict()
@@ -506,7 +536,7 @@ class Optimizador:
                 self.control_eliminacion(index, acciones, sustitutos)
 
     def propagacion_de_constantes(self, auxfile, outroute):
-        with open(auxfile, "r") as infile, open(outroute, "w+") as outfile:
+        with open(auxfile, "r") as infile, open(outroute, "w") as outfile:
             self.findventanas_oportunidad(infile)
             valores = dict()
             cod = infile.readlines()
@@ -544,6 +574,110 @@ class Optimizador:
                 outfile.write(" ".join(lienvector) + "\n")
                 self.control_propagacion(index, valores)
 
+    @staticmethod
+    def eliminacion_codigo_inalcanzable(codigo):
+        codOptimizado = []
+        etiquetas_utilizadas = set()
+
+        # Detectar etiquetas referenciadas
+        for linea in codigo:
+            if 'jmp' in linea or 'ifnjmp' in linea:
+                partes = linea.strip().split()
+                if partes[-1].startswith('l'):
+                    etiquetas_utilizadas.add(partes[-1])
+
+        saltar = False
+        for i, linea in enumerate(codigo):
+            linea_strip = linea.strip()
+            if linea_strip.startswith('label'):
+                etiqueta = linea_strip.split()[1]
+                if etiqueta in etiquetas_utilizadas or i == 0:
+                    saltar = False
+                    codOptimizado.append(linea)
+                else:
+                    saltar = True
+            elif saltar:
+                continue
+            else:
+                codOptimizado.append(linea)
+        return codOptimizado
+
+    @staticmethod
+    def simplificacion_condiciones(codigo):
+        codOptimizado = []
+        for linea in codigo:
+            if '=' in linea:
+                partes = linea.strip().split('=')
+                izq = partes[0].strip()
+                der = partes[1].strip()
+
+                # Simplificación booleana básica
+                if '&&' in der:
+                    op1, op2 = [x.strip() for x in der.split('&&')]
+                    if op1 == 'TRUE' and op2 == 'TRUE':
+                        codOptimizado.append(f'{izq} = TRUE')
+                    elif op1 == 'FALSE' or op2 == 'FALSE':
+                        codOptimizado.append(f'{izq} = FALSE')
+                    elif op1 == 'TRUE':
+                        codOptimizado.append(f'{izq} = {op2}')
+                    elif op2 == 'TRUE':
+                        codOptimizado.append(f'{izq} = {op1}')
+                    else:
+                        codOptimizado.append(linea)
+
+                elif '||' in der:
+                    op1, op2 = [x.strip() for x in der.split('||')]
+                    if op1 == 'TRUE' or op2 == 'TRUE':
+                        codOptimizado.append(f'{izq} = TRUE')
+                    elif op1 == 'FALSE' and op2 == 'FALSE':
+                        codOptimizado.append(f'{izq} = FALSE')
+                    elif op1 == 'FALSE':
+                        codOptimizado.append(f'{izq} = {op2}')
+                    elif op2 == 'FALSE':
+                        codOptimizado.append(f'{izq} = {op1}')
+                    else:
+                        codOptimizado.append(linea)
+                else:
+                    codOptimizado.append(linea)
+            else:
+                codOptimizado.append(linea)
+        return codOptimizado
+
+    @staticmethod
+    def propagacion_de_copias(codigo):
+        codOptimizado = []
+        copias = {}
+
+        for linea in codigo:
+            linea_strip = linea.strip()
+            if '=' in linea_strip and not any(op in linea_strip for op in ['+', '-', '*', '/', '&&', '||', '==', '!=', '<', '>', '<=', '>=']):
+                partes = linea_strip.split('=')
+                izq = partes[0].strip()
+                der = partes[1].strip()
+
+                if der in copias:
+                    copias[izq] = copias[der]
+                else:
+                    copias[izq] = der
+                codOptimizado.append(linea)
+            else:
+                nueva_linea = linea
+                for var in copias:
+                    reemplazo = copias[var]
+                    # Solo reemplaza variables completas, no subcadenas
+                    nueva_linea = Optimizador.reemplazo_variables(nueva_linea, var, reemplazo)
+                codOptimizado.append(nueva_linea)
+        return codOptimizado
+
+
+    @staticmethod
+    def reemplazo_variables(linea, var, valor):
+        import re
+        # Solo reemplaza si la variable es una palabra completa (\b)
+        patron = r'\b' + re.escape(var) + r'\b'
+        return re.sub(patron, valor, linea)
+
+    
     def eliminar_lineas_vacias(self, archivo):
         """
         Elimina las líneas vacías de un archivo dado.

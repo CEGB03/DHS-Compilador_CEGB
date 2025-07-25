@@ -1,6 +1,6 @@
-1 = 1
+x = 1
 y = 0
-0 = 0
+a = 0
 c = TRUE
 d = 0.3
 label l0
@@ -13,7 +13,7 @@ label l1
 t11 = i == 1
 ifnjmp t11, l2
 label l3
-ifnjmp 1, l4
+ifnjmp t13, l4
 y = 1
 jmp l3
 label l4
@@ -25,7 +25,7 @@ label l5
 t17 = d + 0
 t18 = t17 + y
 z = t18
-push 0
+push a
 push c
 push l7
 jmp l6
