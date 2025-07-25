@@ -8,32 +8,32 @@ c = TRUE
 t3 = 0.3
 d = t3
 label l0
-    t4 = 0
-    t5 = x < t4
-    t6 = 0
-    t7 = z > t6
-    t8 = t5 && t7
+t4 = 0
+t5 = x < t4
+t6 = 0
+t7 = z > t6
+t8 = t5 && t7
 ifnjmp t8, l1
-    t9 = 0
-    y = t9
+t9 = 0
+y = t9
 jmp l0
 label l1
 t10 = 1
 t11 = i == t10
 ifnjmp t11, l2
 label l3
-        t12 = 10
-        t13 = x < t12
+t12 = 10
+t13 = x < t12
 ifnjmp t13, l4
-        t14 = 1
-        y = t14
+t14 = 1
+y = t14
 jmp l3
 label l4
 jmp l5
 label l2
-    t15 = 2
-    t16 = t15 + d
-    d = t16
+t15 = 2
+t16 = t15 + d
+d = t16
 label l5
 t17 = d + a
 t18 = t17 + y

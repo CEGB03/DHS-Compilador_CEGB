@@ -24,6 +24,8 @@ class Optimizador:
         
         try:
             self.eliminar_comentarios(inroute)
+            self.eliminar_tabulaciones(inroute)
+            self.eliminar_indentacion(inroute)
 
             print("\033[1;33m--- Iniciando optimización de código intermedio (3 pasadas) ---\033[0m")
             
@@ -67,7 +69,7 @@ class Optimizador:
             with open(outroute, "w") as f:
                 for linea in codigo:
                     f.write(linea if linea.endswith('\n') else linea + '\n')
- 
+
             print(f"\033[1;32m✓ Optimización completada exitosamente en: {outroute}\033[0m")
             return True
             
@@ -77,27 +79,7 @@ class Optimizador:
             import traceback
             traceback.print_exc()
             return False
-
-    def optimizar_postprocesado(self):
-        inroute = "output/codigoIntermedioOptimizado.txt"
-        outroute = "output/codigoIntermedioOptimizado.txt"
     
-        # 1. Leer el código intermedio como lista de líneas
-        with open(inroute, "r") as f:
-            codigo = f.readlines()
-    
-        # 2. Aplicar las optimizaciones
-        codigo = self.eliminacion_codigo_inalcanzable(codigo)
-        codigo = self.simplificacion_condiciones(codigo)
-        codigo = self.propagacion_de_copias(codigo)
-    
-        # 3. Guardar el resultado
-        with open(outroute, "w") as f:
-            for linea in codigo:
-                f.write(linea if linea.endswith('\n') else linea + '\n')
-    
-        print(f"\033[1;32m✓ Optimización postprocesado completada en: {outroute}\033[0m")
-
     def reemplazar_valores_cocidos(self, inroute, outroute):
         """
         Reemplaza valores inicializados que no son alterados
@@ -720,3 +702,28 @@ class Optimizador:
             
         except Exception as e:
             print(f"\033[1;33m⚠️  Error eliminando comentarios de {archivo}: {str(e)}\033[0m")
+
+    def eliminar_tabulaciones(self, archivo):
+        """
+        Elimina todas las tabulaciones de un archivo dado.
+        """
+        try:
+            with open(archivo, "r") as f:
+                lineas = f.readlines()
+            with open(archivo, "w") as f:
+                for linea in lineas:
+                    f.write(linea.replace('\t', ''))
+        except Exception as e:
+            print(f"\033[1;33m⚠️  Error eliminando tabulaciones de {archivo}: {str(e)}\033[0m")
+    def eliminar_indentacion(self, archivo):
+        """
+        Elimina toda la indentación (tabulaciones y espacios al inicio) de cada línea de un archivo.
+        """
+        try:
+            with open(archivo, "r") as f:
+                lineas = f.readlines()
+            with open(archivo, "w") as f:
+                for linea in lineas:
+                    f.write(linea.lstrip())  # Elimina espacios y tabs al inicio
+        except Exception as e:
+            print(f"\033[1;33m⚠️  Error eliminando indentación de {archivo}: {str(e)}\033[0m")
