@@ -2,8 +2,8 @@ int f(int y);
 int xy(bool argA, int argB);
 
 int main() {
-    int x = 1;
-    int y, j;
+    int x = 1, i = 1;
+    int y, j, z=0;
     int a = 0;
     bool c = TRUE;
     double d = 0.3;

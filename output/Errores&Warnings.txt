@@ -1,1 +1,1 @@
-2025-07-27 18:23:32,885 - ERROR - Ha ocurrido un error, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio
+2025-07-27 19:15:31,313 - ERROR - Ha ocurrido un error, revisar el archivo ./output/Errores&Warnings.txt. No se genero codigo intermedio

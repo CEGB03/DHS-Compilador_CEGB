@@ -126,10 +126,18 @@ class TablaSimbolos:
     def buscar_global(self, nombre) -> ID:
         """
         Busca el contexto globalmente (para cosas anidadas)
+        Incluye argumentos de función y variables en todos los contextos
         """
+        # Buscar en todos los contextos, empezando por el más reciente
         for ctx in reversed(self.contextos):
             if nombre in ctx.ids:
                 return ctx.ids[nombre]
+
+        # Si no se encontró en contextos activos, buscar en historial
+        for ctx in reversed(self.contextos_historial):
+            if nombre in ctx.ids:
+                return ctx.ids[nombre]
+
         return None
     def __str__(self):
         ctx_repr = ""

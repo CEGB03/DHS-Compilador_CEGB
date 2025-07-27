@@ -6,8 +6,10 @@ Argumentos:  [('bool', 'argA'), ('int', 'argB')]
 def funcion BLOQUE_FUNCION
 	{
 		Línea 5: La variable 'x' se declaró e inicializó en el contexto actual.
+		Línea 5: La variable 'i' se declaró e inicializó en el contexto actual.
 		Línea 6: La variable 'y' se declaró en el contexto actual.
 		Línea 6: La variable 'j' se declaró en el contexto actual.
+		Línea 6: La variable 'z' se declaró e inicializó en el contexto actual.
 		Línea 7: La variable 'a' se declaró e inicializó en el contexto actual.
 		Línea 8: La variable 'c' se declaró e inicializó en el contexto actual.
 		Línea 9: La variable 'd' se declaró e inicializó en el contexto actual.
@@ -28,7 +30,8 @@ def funcion BLOQUE_FUNCION
 		}
 		// EXIT ELSE
 		// EXIT IF
-		Línea 22: La variable 'z' se declaró e inicializó en el contexto actual.
+		Línea 22: Asignación válida: 'z' = 'd+a+y'.
+		Línea 22: ERROR SEMANTICO: La variable 'z' ya está declarada en el contexto local.
 		xy(c, a)
 		Línea 23: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
 		Línea 24: Asignación válida: 'z' = '3'.
@@ -36,6 +39,7 @@ def funcion BLOQUE_FUNCION
 		Línea 26: Asignación válida: 'd' = '2.25'.
 		Línea 27: Asignación válida: 'c' = 'TRUE&&FALSE'.
 		Línea 28: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
+		Línea 30: Return procesado: 0
 	}
 	Línea 4: Definición de función 'main' agregada.
 // EXIT FUNCION
@@ -49,7 +53,9 @@ def funcion BLOQUE_FUNCION
 		Línea 37: ERROR SEMANTICO: El identificador 'argB' no fue declarado previamente.
 		Línea 37: Asignación válida: 'k' = 'argB'.
 		if (...)
+		Línea 39: Return procesado: (k+1)
 		else
+		Línea 41: Return procesado: (k+2)
 		// EXIT ELSE
 		// EXIT IF
 	}
@@ -60,19 +66,20 @@ Fin de la compilacion
 
 Tabla de Simbolos:
 Contexto main: 
-Variable: int x: Inicializado? True, Usado? False
+Variable: int x: Inicializado? True, Usado? True
+Variable: int i: Inicializado? True, Usado? True
 Variable: int y: Inicializado? True, Usado? True
 Variable: int j: Inicializado? False, Usado? False
+Variable: int z: Inicializado? True, Usado? True
 Variable: int a: Inicializado? True, Usado? True
 Variable: bool c: Inicializado? True, Usado? True
 Variable: double d: Inicializado? True, Usado? True
-Variable: int z: Inicializado? True, Usado? True
 Variable: bool e: Inicializado? True, Usado? False
 Función: int main(args=[]) | Prototipado? No, Desarrollado? Sí, Usado? No
 
 Contexto xy: 
-Variable: int k: Inicializado? True, Usado? False
+Variable: int k: Inicializado? True, Usado? True
 Variable: int m: Inicializado? False, Usado? False
-Variable: bool h: Inicializado? True, Usado? False
+Variable: bool h: Inicializado? True, Usado? True
 
 

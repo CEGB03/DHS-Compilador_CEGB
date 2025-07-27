@@ -87,11 +87,12 @@ class Escucha(compiladoresListener):
         if ctx.param():
             args = self.extraer_argumentos_param(ctx.param())
 
-        # Agregar cada argumento como variable declarada e inicializada en el contexto actual
-        for tipo, nombre_var in args:
-            if self.tabla.buscar_local(nombre_var) is None:
-                variable = Variable(nombre_var, tipo, inicializado=True, declarado=True)
-                self.tabla.add_identificador(variable)
+        # CORRECCIÓN: Agregar cada argumento como variable individual al contexto actual
+        for tipo, nombre_arg in args:
+            if self.tabla.buscar_local(nombre_arg) is None:
+                var_arg = Variable(nombre_arg, tipo, inicializado=True, declarado=True)
+                self.tabla.add_identificador(var_arg)
+                self.write_log(f"Argumento agregado: {tipo} {nombre_arg}", indentar=True)
 
     def exitIprototipo(self, ctx: compiladoresParser.IprototipoContext):
         linea = ctx.start.line
@@ -145,10 +146,12 @@ class Escucha(compiladoresListener):
             funcion.inicializado = True
             self.tabla.add_identificador(funcion)
             self.write_log(f"Línea {linea}: Definición de función '{nombre_funcion}' agregada.", indentar=True)
+        
         self.nivel_indentacion -= 1
         self.write_log("// EXIT FUNCION", indentar=True)
         self.en_funcion = False  # <--- desactiva el flag
         self.tabla.renombrar_contexto_actual(nombre_funcion)
+        self.tabla.del_Contexto()
 
     def verificar_correspondencia_parametros(self, params_prototipo, params_definicion, linea):
         """Verificar que los parámetros del prototipo coincidan con la definición"""
@@ -171,6 +174,8 @@ class Escucha(compiladoresListener):
         self.in_condition = False
         tipos = self.type_stack.pop()
         self.validar_condicion(tipos, ctx)
+        # NUEVO: Marcar variables en condiciones como usadas
+        self.verificar_variables_en_expresion(ctx.getText(), ctx.start.line)
 
     def validar_condicion(self, tipos, ctx):
         """Validar que la condición sea válida"""
@@ -212,6 +217,10 @@ class Escucha(compiladoresListener):
 
     def exitIwhile(self, ctx: compiladoresParser.IwhileContext):
         self.write_log("// FIN WHILE", indentar=True)
+        # NUEVO: Verificar variables en la condición del while
+        if ctx.cond():
+            expresion_cond = ctx.cond().getText()
+            self.verificar_variables_en_expresion(expresion_cond, ctx.start.line)
 
     def enterIfor(self, ctx: compiladoresParser.IforContext):
         self.write_log("for (...)", indentar=True)
@@ -224,6 +233,10 @@ class Escucha(compiladoresListener):
 
     def exitIif(self, ctx: compiladoresParser.IifContext):
         self.write_log("// EXIT IF", indentar=True)
+        # NUEVO: Verificar variables en la condición del if
+        if ctx.cond():
+            expresion_cond = ctx.cond().getText()
+            self.verificar_variables_en_expresion(expresion_cond, ctx.start.line)
 
     def enterIelse(self, ctx: compiladoresParser.IelseContext):
         self.write_log("else", indentar=True)
@@ -298,9 +311,9 @@ class Escucha(compiladoresListener):
             if token in palabras_reservadas:
                 continue
                 
-            var = self.tabla.buscar_local(token)
-            if not var:
-                var = self.tabla.buscar_global(token)
+            # Usar búsqueda global que incluye todos los contextos
+            var = self.tabla.buscar_global(token)
+            
             if var and not isinstance(var, Funcion):
                 var.set_usado()
                 if not var.inicializado:
@@ -340,6 +353,7 @@ class Escucha(compiladoresListener):
             elif re.match(r'^\d+\.\d+$', arg):
                 tipos_args.append(('double', None))
             else:
+                # Usar búsqueda global que incluye todos los contextos
                 var = self.tabla.buscar_global(arg)
                 if var and hasattr(var, 'tipoDato'):
                     # Marcar como usada y verificar inicialización
@@ -381,29 +395,28 @@ class Escucha(compiladoresListener):
             nombreVariableIzquierda = operacion.split('=')[0].strip()
             expresionDerecha = operacion.split('=', 1)[1].strip()
             
-            # Verificar variable izquierda
+            # Usar búsqueda global que incluye contextos padre
             var_izquierda = self.tabla.buscar_global(nombreVariableIzquierda)
-            # SOLO reporta error si NO estás en declaración
+            
+            # SOLO reporta error si NO estás en declaración Y la variable no existe
             if var_izquierda is None and not self.in_declaration:
                 self.write_log(f"Línea {linea}: ERROR SEMANTICO: La variable '{nombreVariableIzquierda}' no fue declarada previamente.")
                 print(f"\033[91mERROR: Línea {linea}: La variable '{nombreVariableIzquierda}' no fue declarada previamente.\033[0m")
                 self.error = True
                 return
             
-            # Si sigue siendo None, no sigas
-            if var_izquierda is None:
-                return
-            
-            # Verificar variables del lado derecho
-            self.verificar_variables_en_expresion(expresionDerecha, linea)
-            
-            # Verificar compatibilidad de tipos (si es necesario)
-            tipo_izquierda = var_izquierda.tipoDato
-            self.validar_tipos_asignacion(tipo_izquierda, expresionDerecha, linea)
-            
-            # Marcar variable izquierda como inicializada
-            var_izquierda.set_inicializado()
-            self.write_log(f"Línea {linea}: Asignación válida: '{nombreVariableIzquierda}' = '{expresionDerecha}'.")
+            # Si la variable existe, continuar
+            if var_izquierda is not None:
+                # Verificar variables del lado derecho
+                self.verificar_variables_en_expresion(expresionDerecha, linea)
+                
+                # Verificar compatibilidad de tipos (si es necesario)
+                tipo_izquierda = var_izquierda.tipoDato
+                self.validar_tipos_asignacion(tipo_izquierda, expresionDerecha, linea)
+                
+                # Marcar variable izquierda como inicializada
+                var_izquierda.set_inicializado()
+                self.write_log(f"Línea {linea}: Asignación válida: '{nombreVariableIzquierda}' = '{expresionDerecha}'.")
 
     def validar_tipos_asignacion(self, tipo_izquierda, expresion_derecha, linea):
         """Validar compatibilidad de tipos en asignación"""
@@ -434,7 +447,8 @@ class Escucha(compiladoresListener):
         palabras_reservadas = {'TRUE', 'FALSE', 'true', 'false', 'int', 'bool', 'float', 'double', 'void', 'return', 'if', 'else', 'while', 'for'}
         
         if texto.isidentifier() and texto not in palabras_reservadas:
-            variable = self.tabla.buscar_local(texto) or self.tabla.buscar_global(texto)
+            # Usar búsqueda global que incluye todos los contextos
+            variable = self.tabla.buscar_global(texto)
             if variable and not isinstance(variable, Funcion):
                 if not variable.inicializado and not self.in_assignment:
                     print(f"\033[93mADVERTENCIA: La variable '{texto}' se usa sin ser inicializada.\033[0m")
@@ -512,3 +526,12 @@ class Escucha(compiladoresListener):
             else:
                 break
         return args
+
+    def exitIreturn(self, ctx: compiladoresParser.IreturnContext):
+        """Procesar statements de return"""
+        linea = ctx.start.line
+        if ctx.opal():
+            # Verificar variables usadas en la expresión de return
+            expresion_return = ctx.opal().getText()
+            self.verificar_variables_en_expresion(expresion_return, linea)
+            self.write_log(f"Línea {linea}: Return procesado: {expresion_return}", indentar=True)
