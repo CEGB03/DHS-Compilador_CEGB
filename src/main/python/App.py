@@ -28,7 +28,7 @@ sys.stderr = open('./output/Errores&Warnings.txt', 'a')
 
 def main(argv):
     archivo = "input/opal.txt"
-    if len(argv) > 1:
+    """ if len(argv) > 1:
         archivo = argv[1]
     else:
         print("¿Desea ejecutar el archivo por defecto (input/opal.txt)? [S/n]")
@@ -38,6 +38,8 @@ def main(argv):
             if not archivo:
                 print("No se ingresó archivo, se usará el archivo por defecto.")
                 archivo = "input/opal.txt"
+        else:
+            archivo = "input/opal.txt"  # <-- Agrega esto para el caso "s" o Enter """
     input_stream = FileStream(archivo, encoding='utf-8')
     lexer = compiladoresLexer(input_stream)
     stream = CommonTokenStream(lexer)
@@ -45,7 +47,7 @@ def main(argv):
     escucha = Escucha()
     parser.addParseListener(escucha)
     tree = parser.programa() #con el arbol vamos a crear el codigo intermedio
-    # print(tree.toStringTree(recog=parser))
+    #print(tree.toStringTree(recog=parser)) # Permite ver como se desarrolla la gramatica
     # si hay algun error, debera detenerse la ejecucion y no se construira el codigo intermedio
     if not escucha.error:
         caminante = Walker()

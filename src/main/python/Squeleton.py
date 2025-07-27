@@ -94,25 +94,18 @@ class TablaSimbolos:
         if TablaSimbolos.instancia is not None:
             raise Exception("La clase Tabla de Simbolos no puede ser instanciada mas de una vez!")
         self.contextos = []
+        self.contextos_historial = []  # <-- Agrega esto
         self.contextos.append(Contexto("Global"))
         TablaSimbolos.instancia = self
-        
+
     def add_contexto(self, nombreContexto):
-        """
-        Agrega un nuevo contexto a la tabla de simbolos
-        """
-        #print("Agregando contexto ......")
-        #print("Instancia: "+ self.get_instancia().getText())
         nuevoContexto = Contexto(nombreContexto)
         self.contextos.append(nuevoContexto)
+        self.contextos_historial.append(nuevoContexto)  # <-- Guarda el historial
         return nuevoContexto
         
     def del_Contexto(self):
-        """
-        Elimina el ultimo contexto
-        """
-        #print(self.__str__())
-        if self.contextos is not None:
+        if self.contextos is not None and len(self.contextos) > 1:
             return self.contextos.pop()
         return None
         
@@ -127,6 +120,7 @@ class TablaSimbolos:
         Busca en el contexto actual (para for o funcion con argumentos)
         """
         contexto_actual = self.contextos[-1]
+        #print(f"Buscando '{nombre}' en contexto: {contexto_actual.nombreContexto}, ids: {list(contexto_actual.ids.keys())}")
         return contexto_actual.ids.get(nombre)
             
     def buscar_global(self, nombre) -> ID:
@@ -139,7 +133,7 @@ class TablaSimbolos:
         return None
     def __str__(self):
         ctx_repr = ""
-        for ctx in self.contextos:
+        for ctx in self.contextos_historial:
             ctx_repr += ctx.__str__() + "\n"
         return "Tabla de Simbolos:\n" + ctx_repr
     
@@ -162,3 +156,61 @@ class TablaSimbolos:
             print(vars_sin_usar)
         else:
             print("No hay variables sin usar.")
+    
+    def reporte_variables_y_funciones_sin_usar(self):
+        # Usar el historial de contextos
+        for contexto in self.contextos_historial:
+            vars_sin_usar = [id for id in contexto.ids.values()
+                                if isinstance(id, Variable) and not id.usado]
+            if contexto.nombreContexto.lower() != "global" and vars_sin_usar:
+                print(f"Variables sin usar en función '{contexto.nombreContexto}':")
+                for var in vars_sin_usar:
+                    print("  " + str(var))
+            elif contexto.nombreContexto.lower() == "global" and vars_sin_usar:
+                print("Variables sin usar en contexto global:")
+                for var in vars_sin_usar:
+                    print("  " + str(var))
+        # Reportar funciones desarrolladas no usadas
+        funciones_no_usadas = []
+        for contexto in self.contextos_historial:
+            for id in contexto.ids.values():
+                if isinstance(id, Funcion) and id.inicializado and not id.usado:
+                    funciones_no_usadas.append(id)
+        if funciones_no_usadas:
+            print("Funciones desarrolladas pero no usadas:")
+            for fun in funciones_no_usadas:
+                print("  " + str(fun))
+    
+    def renombrar_contexto_actual(self, nombreContexto):
+        """
+        Cambia el nombre del contexto actual (el más reciente) por el nombre dado.
+        """
+        if self.contextos:
+            contexto_actual = self.contextos[-1]
+            contexto_actual.nombreContexto = nombreContexto
+            
+            # Buscar y actualizar también en el historial
+            for i, ctx in enumerate(self.contextos_historial):
+                if ctx is contexto_actual:
+                    self.contextos_historial[i].nombreContexto = nombreContexto
+                    break
+    
+    def marcar_main_como_usada(self, ignorar_main_usada=True):
+        """
+        Marca la función main como usada si la bandera está activa.
+        """
+        if ignorar_main_usada:
+            for contexto in self.contextos_historial:
+                for id in contexto.ids.values():
+                    if isinstance(id, Funcion) and id.nombre == "main":
+                        id.set_usado()
+    
+    def cargar_argumentos_en_contexto(self, funcion):
+        """
+        Dada una función con lista de argumentos (tipo, nombre),
+        los agrega como Variables inicializadas al contexto actual.
+        """
+        for tipo, nombre in funcion.args:
+            if nombre not in self.contextos[-1].ids:
+                var_arg = Variable(nombre, tipo, inicializado=True, declarado=True)
+                self.add_identificador(var_arg)

@@ -397,12 +397,8 @@ class Walker (compiladoresVisitor):
 
     def visitIreturn(self, ctx: compiladoresParser.IreturnContext):
         if self.inFuncion == 1:
-            if len(self.temporales) > 0:
-                self.file.write(f'push {self.temporales.pop()}\n')
-            else:
-                self.visit(ctx.opal())
-                if len(self.temporales) > 0:
-                    self.file.write(f'push {self.temporales.pop()}\n')
+            resultado = self.visit(ctx.opal())
+            self.file.write(f'push {resultado}\n')
 
     def visitIif(self, ctx:compiladoresParser.IifContext):
         self.visit(ctx.cond())
@@ -541,7 +537,6 @@ class Walker (compiladoresVisitor):
         self.inFuncion = 1
         self.visit(ctx.bloque())
         self.inFuncion = 0
-        self.file.write(f'push t1\n')
         self.file.write(f'jmp t0\n')
 
     def visitBloque(self, ctx:compiladoresParser.BloqueContext):

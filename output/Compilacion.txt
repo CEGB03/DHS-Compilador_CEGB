@@ -1,62 +1,78 @@
 Comienza la compilacion
-Línea 1: La variable 'x' se declaró e inicializó en el contexto actual.
-Declarada Función: int f: Prototipado? True en línea 2
+Declarada Función: int f: Prototipado? True en línea 1
 Argumentos:  [('int', 'y')]
-Línea 3: La variable 'y' se declaró e inicializó en el contexto actual.
-Línea 3: La variable 'j' se declaró en el contexto actual.
-Línea 4: La variable 'a' se declaró e inicializó en el contexto actual.
-Línea 5: La variable 'c' se declaró e inicializó en el contexto actual.
-Línea 6: La variable 'd' se declaró e inicializó en el contexto actual.
-while (...)
-Línea 9: Asignación válida: 'y' = '0'.
-// FIN WHILE
-if (...)
-{
-	while (...)
-	{
-		Línea 13: Asignación válida: 'y' = '1'.
-	}
-	// FIN WHILE
-}
-else
-{
-	Línea 16: Asignación válida: 'd' = '2+d'.
-}
-// EXIT ELSE
-// EXIT IF
-Declarada Función: int xy: Prototipado? True en línea 18
+Declarada Función: int xy: Prototipado? True en línea 2
 Argumentos:  [('bool', 'argA'), ('int', 'argB')]
-Línea 19: La variable 'z' se declaró e inicializó en el contexto actual.
-xy(c, a)
-Línea 20: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
-Línea 21: Asignación válida: 'z' = '3'.
-Línea 22: La variable 'e' se declaró e inicializó en el contexto actual.
-Línea 23: Asignación válida: 'd' = '2.25'.
-Línea 24: Asignación válida: 'c' = 'TRUE&&FALSE'.
-Línea 25: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
-def funcion
+def funcion BLOQUE_FUNCION
 	{
+		Línea 5: La variable 'x' se declaró e inicializó en el contexto actual.
+		Línea 6: La variable 'y' se declaró en el contexto actual.
+		Línea 6: La variable 'j' se declaró en el contexto actual.
+		Línea 7: La variable 'a' se declaró e inicializó en el contexto actual.
+		Línea 8: La variable 'c' se declaró e inicializó en el contexto actual.
+		Línea 9: La variable 'd' se declaró e inicializó en el contexto actual.
+		while (...)
+		Línea 12: Asignación válida: 'y' = '0'.
+		// FIN WHILE
+		if (...)
+		{
+			while (...)
+			{
+				Línea 16: Asignación válida: 'y' = '1'.
+			}
+			// FIN WHILE
+		}
+		else
+		{
+			Línea 19: Asignación válida: 'd' = '2+d'.
+		}
+		// EXIT ELSE
+		// EXIT IF
+		Línea 22: La variable 'z' se declaró e inicializó en el contexto actual.
+		xy(c, a)
+		Línea 23: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
+		Línea 24: Asignación válida: 'z' = '3'.
+		Línea 25: La variable 'e' se declaró e inicializó en el contexto actual.
+		Línea 26: Asignación válida: 'd' = '2.25'.
+		Línea 27: Asignación válida: 'c' = 'TRUE&&FALSE'.
+		Línea 28: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
+	}
+	Línea 4: Definición de función 'main' agregada.
+// EXIT FUNCION
+def funcion BLOQUE_FUNCION
+	{
+		Línea 34: La variable 'k' se declaró en el contexto actual.
+		Línea 34: La variable 'm' se declaró en el contexto actual.
+		Línea 35: La variable 'h' se declaró en el contexto actual.
+		Línea 36: ERROR SEMANTICO: El identificador 'argA' no fue declarado previamente.
+		Línea 36: Asignación válida: 'h' = 'argA'.
+		Línea 37: ERROR SEMANTICO: El identificador 'argB' no fue declarado previamente.
+		Línea 37: Asignación válida: 'k' = 'argB'.
 		if (...)
 		else
 		// EXIT ELSE
 		// EXIT IF
 	}
-	Línea 27: Definición de función 'xy' completada.
+	Línea 33: Definición de función 'xy' completada.
 // EXIT FUNCION
 Fin de la compilacion
 
 
 Tabla de Simbolos:
-Contexto Global: 
+Contexto main: 
 Variable: int x: Inicializado? True, Usado? False
-Función: int f(args=[('int', 'y')]) | Prototipado? Sí, Desarrollado? No, Usado? No
 Variable: int y: Inicializado? True, Usado? True
 Variable: int j: Inicializado? False, Usado? False
 Variable: int a: Inicializado? True, Usado? True
 Variable: bool c: Inicializado? True, Usado? True
 Variable: double d: Inicializado? True, Usado? True
-Función: int xy(args=[('bool', 'argA'), ('int', 'argB')]) | Prototipado? Sí, Desarrollado? Sí, Usado? Sí
 Variable: int z: Inicializado? True, Usado? True
 Variable: bool e: Inicializado? True, Usado? False
+Función: int main(args=[]) | Prototipado? No, Desarrollado? Sí, Usado? No
+
+Contexto xy: 
+Variable: int k: Inicializado? True, Usado? False
+Variable: int m: Inicializado? False, Usado? False
+Variable: bool h: Inicializado? True, Usado? False
 
 

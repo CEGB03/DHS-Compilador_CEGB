@@ -80,9 +80,8 @@ s : ID     {print("ID ->" + $ID.text + "<--") }         s
 //programa
 programa : instrucciones EOF ; //secuencia de instrucciones hasta el final del archivo
 
-instrucciones : instruccion instrucciones //es una instruccion con mas instrucciones 
-                |
-                ;
+instrucciones : (instruccion)+ ;
+
 instruccion: declaracion PYC
             | iwhile
             | bloque

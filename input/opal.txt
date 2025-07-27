@@ -1,32 +1,42 @@
-int x = 1;
 int f(int y);
-int y=0, j;
-int a = 0;
-bool c = TRUE;
-double d = 0.3;
-
-while ( (x<0) && (z>0)) 
-    y = 0;
-
-if (i == 1) {
-    while (x < 10) {
-        y = 1;
-    }
-} else {
-    d = 2 + d;
-}
 int xy(bool argA, int argB);
-int z = d + a + y;
-y = 2 + xy(c, a) + z + y + d;
-z = 3;
-bool e = c;
-d = 2.25;
-c = TRUE && FALSE;
-e = FALSE || TRUE || TRUE;
 
-int xy (bool argA, int argB){
-    if(argA)
-        return (argB + 1);
+int main() {
+    int x = 1;
+    int y, j;
+    int a = 0;
+    bool c = TRUE;
+    double d = 0.3;
+
+    while ((x < 0) && (z > 0))
+        y = 0;
+
+    if (i == 1) {
+        while (x < 10) {
+            y = 1;
+        }
+    } else {
+        d = 2 + d;
+    }
+
+    int z = d + a + y;
+    y = 2 + xy(c, a) + z + y + d;
+    z = 3;
+    bool e = c;
+    d = 2.25;
+    c = TRUE && FALSE;
+    e = FALSE || TRUE || TRUE;
+
+    return 0;
+}
+
+int xy(bool argA, int argB) {
+    int k, m;
+    bool h;
+    h=argA;
+    k=argB;
+    if (h)
+        return (k + 1);
     else
-        return (argB + 2);
+        return (k + 2);
 }

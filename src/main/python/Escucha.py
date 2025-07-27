@@ -1,3 +1,4 @@
+# Escucha.py
 from antlr4 import ErrorNode, TerminalNode
 from compiladoresListener import compiladoresListener
 from compiladoresParser import compiladoresParser
@@ -20,6 +21,8 @@ class Escucha(compiladoresListener):
         # Control de contexto de asignación
         self.in_assignment = False
         self.in_declaration = False
+        self.nombre_funcion_actual = None
+        self.en_funcion = False  # <--- agrega este flag
 
     def write_log(self, mensaje, indentar=True):
         if indentar:
@@ -38,19 +41,25 @@ class Escucha(compiladoresListener):
     def exitPrograma(self, ctx: compiladoresParser.ProgramaContext):
         self.write_log("Fin de la compilacion\n\n", indentar=False)
         self.write_log(self.tabla.__str__(), indentar=False)
-        self.tabla.mostrarVarsSinUsar()
+        # Cambia a True si NO quieres que main aparezca como "no usada"
+        self.tabla.marcar_main_como_usada(ignorar_main_usada=True)
+        self.tabla.reporte_variables_y_funciones_sin_usar()
         self.tabla.del_Contexto()
 
     # SOLO agregar contexto cuando hay llaves (bloque)
     def enterBloque(self, ctx: compiladoresParser.BloqueContext):
         self.write_log("{", indentar=True)
         self.nivel_indentacion += 1
-        self.tabla.add_contexto("BLOQUE")
+        if not self.en_funcion:
+            self.tabla.add_contexto("BLOQUE")
+        # Si estás en función, NO agregues contexto aquí
 
     def exitBloque(self, ctx: compiladoresParser.BloqueContext):
         self.nivel_indentacion -= 1
         self.write_log("}", indentar=True)
-        self.tabla.del_Contexto()
+        if not self.en_funcion:
+            self.tabla.del_Contexto()
+        # Si estás en función, NO borres contexto aquí (lo hace exitIfuncion)
 
     def enterBloqueSolo(self, ctx: compiladoresParser.BloqueContext):
         self.write_log("{", indentar=True)
@@ -63,8 +72,26 @@ class Escucha(compiladoresListener):
         self.tabla.del_Contexto()
 
     def enterIfuncion(self, ctx: compiladoresParser.IfuncionContext):
-        self.write_log("def funcion", indentar=True)
+        # Crear contexto genérico inicial
+        self.tabla.add_contexto("BLOQUE_FUNCION")
+        self.en_funcion = True
+        self.write_log("def funcion BLOQUE_FUNCION", indentar=True)
         self.nivel_indentacion += 1
+
+        # Obtener el nombre real de la función y renombrar el contexto
+        nombre_funcion = ctx.ID().getText() if ctx.ID() else "BLOQUE_FUNCION"
+        self.tabla.renombrar_contexto_actual(nombre_funcion)
+
+        # Extraer argumentos de la definición
+        args = []
+        if ctx.param():
+            args = self.extraer_argumentos_param(ctx.param())
+
+        # Agregar cada argumento como variable declarada e inicializada en el contexto actual
+        for tipo, nombre_var in args:
+            if self.tabla.buscar_local(nombre_var) is None:
+                variable = Variable(nombre_var, tipo, inicializado=True, declarado=True)
+                self.tabla.add_identificador(variable)
 
     def exitIprototipo(self, ctx: compiladoresParser.IprototipoContext):
         linea = ctx.start.line
@@ -73,7 +100,7 @@ class Escucha(compiladoresListener):
         # Extraer argumentos
         args = []
         if ctx.protoparam():
-            args = self.extraer_argumentos_funcion(ctx.protoparam())
+            args = self.extraer_argumentos_protoparam(ctx.protoparam())
         funcion = Funcion(nombre_funcion, tipo_retorno)
         funcion.set_args(args)
         funcion.prototipado = True
@@ -90,9 +117,9 @@ class Escucha(compiladoresListener):
             print("\033[1;33m" + f"Línea {linea}: Advertencia: La función '{nombre_funcion}' es redeclarada en el contexto actual." + "\033[0m")
 
     def exitIfuncion(self, ctx: compiladoresParser.IfuncionContext):
+        nombre_funcion = ctx.ID().getText() if ctx.ID() else ""
         linea = ctx.start.line
         tipo_retorno = ctx.tipo().getText() if ctx.tipo() else ""
-        nombre_funcion = ctx.ID().getText() if ctx.ID() else ""
         args = []
         if ctx.param():
             args = self.extraer_argumentos_funcion(ctx.param())
@@ -120,6 +147,8 @@ class Escucha(compiladoresListener):
             self.write_log(f"Línea {linea}: Definición de función '{nombre_funcion}' agregada.", indentar=True)
         self.nivel_indentacion -= 1
         self.write_log("// EXIT FUNCION", indentar=True)
+        self.en_funcion = False  # <--- desactiva el flag
+        self.tabla.renombrar_contexto_actual(nombre_funcion)
 
     def verificar_correspondencia_parametros(self, params_prototipo, params_definicion, linea):
         """Verificar que los parámetros del prototipo coincidan con la definición"""
@@ -269,7 +298,9 @@ class Escucha(compiladoresListener):
             if token in palabras_reservadas:
                 continue
                 
-            var = self.tabla.buscar_global(token)
+            var = self.tabla.buscar_local(token)
+            if not var:
+                var = self.tabla.buscar_global(token)
             if var and not isinstance(var, Funcion):
                 var.set_usado()
                 if not var.inicializado:
@@ -415,26 +446,12 @@ class Escucha(compiladoresListener):
     def extraer_argumentos_funcion(self, argumentos_ctx):
         """Extrae los argumentos de una función como lista de tuplas (tipo, nombre)"""
         args = []
-        if argumentos_ctx is None:
-            return args
-        # Para param: p C param | p
-        if hasattr(argumentos_ctx, 'p') and argumentos_ctx.p():
-            tipo = argumentos_ctx.p().tipo().getText()
-            nombre = argumentos_ctx.p().ID().getText()
+        ctx = argumentos_ctx
+        while ctx is not None and hasattr(ctx, 'p') and ctx.p():
+            tipo = ctx.p().tipo().getText()
+            nombre = ctx.p().ID().getText()
             args.append((tipo, nombre))
-            if hasattr(argumentos_ctx, 'C') and argumentos_ctx.C():
-                siguiente = argumentos_ctx.param()
-                if siguiente:
-                    args += self.extraer_argumentos_funcion(siguiente)
-        # Para protoparam: igual que antes
-        elif hasattr(argumentos_ctx, 'tipo') and argumentos_ctx.tipo() and hasattr(argumentos_ctx, 'ID') and argumentos_ctx.ID():
-            tipo = argumentos_ctx.tipo().getText()
-            nombre = argumentos_ctx.ID().getText()
-            args.append((tipo, nombre))
-            if hasattr(argumentos_ctx, 'C') and argumentos_ctx.C():
-                siguiente = argumentos_ctx.protoparam()
-                if siguiente:
-                    args += self.extraer_argumentos_funcion(siguiente)
+            ctx = ctx.param()  # Avanza al siguiente argumento (recursivo a la derecha)
         return args
 
     def extraer_argumentos_llamada(self, argumentos_ctx):
@@ -469,3 +486,29 @@ class Escucha(compiladoresListener):
         else:
             self.write_log(f"Línea {linea}: ERROR SEMANTICO: La función '{nombreFuncion}' no fue declarada previamente.")
             self.error = True
+
+    def extraer_argumentos_param(self, param_ctx):
+        """Extrae argumentos de la definición (param)"""
+        args = []
+        ctx = param_ctx
+        while ctx is not None and hasattr(ctx, 'p') and ctx.p():
+            tipo = ctx.p().tipo().getText()
+            nombre = ctx.p().ID().getText()
+            args.append((tipo, nombre))
+            ctx = ctx.param()
+        return args
+    
+    def extraer_argumentos_protoparam(self, protoparam_ctx):
+        """Extrae argumentos del prototipo (protoparam)"""
+        args = []
+        ctx = protoparam_ctx
+        while ctx is not None and ctx.tipo():
+            tipo = ctx.tipo().getText()
+            nombre = ctx.ID().getText() if ctx.ID() else None
+            if nombre:
+                args.append((tipo, nombre))
+            if hasattr(ctx, 'protoparam') and ctx.protoparam():
+                ctx = ctx.protoparam()
+            else:
+                break
+        return args
