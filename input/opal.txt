@@ -33,9 +33,12 @@ int main() {
 }
 
 int xy(bool argA, int argB) {
-    int m;
-    if (argA)
-        return (argB + 1);
+    int m, k;
+    bool p;
+    p=argA;
+    k=argB;
+    if (p)
+        return (k + 1);
     else
-        return (argB + 2);
+        return (k + 2);
 }

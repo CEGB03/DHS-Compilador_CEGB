@@ -61,7 +61,7 @@ class Escucha(compiladoresListener):
             for id in contexto.ids.values():
                 if isinstance(id, Funcion) and id.nombre == "main":
                     id.set_usado()
-                    print("DEBUG: ✓ main marcada como usada antes del reporte")
+                    #print("DEBUG: ✓ main marcada como usada antes del reporte")
                     break
         
         self.write_log(self.tabla.__str__(), indentar=False)

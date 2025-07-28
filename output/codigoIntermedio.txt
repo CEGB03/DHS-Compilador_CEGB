@@ -1,0 +1,84 @@
+t0 = 4.5
+q = t0
+label l0
+pop t0
+t1 = 1
+x = t1
+int i
+t2 = 1
+i = t2
+int y
+int j
+int z
+t3 = 0
+z = t3
+t4 = 0
+a = t4
+t5 = TRUE
+c = t5
+t6 = 0.3
+d = t6
+label l2
+t7 = x < 0
+t8 = z > 0
+t9 = t7 && t8
+ifnjmp t9, l3
+t10 = 0
+jmp l2
+label l3
+t11 = i == 1
+ifnjmp error_cond, l4
+label l5
+t12 = x < 10
+ifnjmp t12, l6
+t13 = 1
+jmp l5
+label l6
+jmp l7
+label l4
+t14 = 2 + d
+d = t14
+label l7
+t15 = d + a
+t16 = t15 + y
+z = t16
+push c
+push a
+push l9
+jmp l8
+label l9
+pop t17
+t18 = 2 + t17
+t19 = t18 + z
+t20 = t19 + y
+t21 = t20 + d
+y = t21
+t22 = 3
+e = c
+t23 = 2.25
+t24 = TRUE && FALSE
+c = t24
+t25 = FALSE || TRUE
+t26 = t25 || TRUE
+e = t26
+t27 = 0
+push t27
+jmp t0
+label l8
+pop t0
+pop argB
+pop argA
+int m
+int k
+bool p
+p = argA
+k = argB
+ifnjmp error_cond, l10
+t28 = k + 1
+push t28
+jmp l11
+label l10
+t29 = k + 2
+push t29
+label l11
+jmp t0

@@ -49,10 +49,14 @@ def funcion
 	Argumento agregado: int argB
 	{
 		Línea 36: La variable 'm' se declaró en el contexto actual.
+		Línea 36: La variable 'k' se declaró en el contexto actual.
+		Línea 37: La variable 'p' se declaró en el contexto actual.
+		Línea 38: Asignación válida: 'p' = 'argA'.
+		Línea 39: Asignación válida: 'k' = 'argB'.
 		if (...)
-		Línea 38: Return procesado: (argB+1)
+		Línea 41: Return procesado: (k+1)
 		else
-		Línea 40: Return procesado: (argB+2)
+		Línea 43: Return procesado: (k+2)
 		// EXIT ELSE
 		// EXIT IF
 	}
@@ -83,5 +87,7 @@ Contexto xy:
 Variable: bool argA: Inicializado? True, Usado? True
 Variable: int argB: Inicializado? True, Usado? True
 Variable: int m: Inicializado? False, Usado? False
+Variable: int k: Inicializado? True, Usado? True
+Variable: bool p: Inicializado? True, Usado? True
 
 

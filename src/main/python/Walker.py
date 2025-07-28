@@ -5,21 +5,35 @@ import os
 class Temporales:
     def __init__(self):
         self.counter = 0
-        self.stack = []  # Pila para manejar temporales
-    
-    def next_temporal(self):
+        self.stack = []
+        self.tipos = {}  # Mapear temporales a tipos
+
+    def next_temporal(self, tipo="int"):
+        """Generar temporal con tipo específico"""
         temporal = f't{self.counter}'
+        self.tipos[temporal] = tipo
         self.counter += 1
         return temporal
-    
-    def push(self, temp):
-        self.stack.append(temp)
-    
-    def pop(self):
-        return self.stack.pop() if self.stack else None
-    
-    def peek(self):
-        return self.stack[-1] if self.stack else None
+
+    def next_temporal_with_type(self, operando1, operando2, operacion):
+        """Generar temporal inferiendo el tipo de la operación"""
+        tipo_resultado = self.inferir_tipo_operacion(operando1, operando2, operacion)
+        return self.next_temporal(tipo_resultado)
+
+    def inferir_tipo_operacion(self, op1, op2, operacion):
+        """Inferir tipo del resultado de una operación"""
+        # Reglas básicas de inferencia de tipos
+        if operacion in ['&&', '||', '==', '!=', '<', '>', '<=', '>=']:
+            return "bool"
+        elif any(x in [op1, op2] for x in ['double', 'float']) or \
+             ('.' in str(op1)) or ('.' in str(op2)):
+            return "double"
+        else:
+            return "int"
+
+    def get_tipo(self, temporal):
+        """Obtener tipo de un temporal"""
+        return self.tipos.get(temporal, "int")
 
 class Etiquetas:
     def __init__(self):
@@ -70,8 +84,14 @@ class Walker (compiladoresVisitor):
         print("=-"*20)
         print("\033[1;32m"+"--- Generando código intermedio ---"+"\033[0m")
         self.file = open(self.ruta, "w")
-        # ===== CAMBIO: Removida la generación de inicializaciones globales separada =====
-        self.visit(ctx.instrucciones())
+        
+        # ===== CORRECCIÓN: Verificar que instrucciones() existe =====
+        if ctx.instrucciones():
+            self.visit(ctx.instrucciones())
+        else:
+            #print("DEBUG: No hay instrucciones para procesar")
+            pass
+    
         self.file.close()
         with open(self.ruta, "r") as file:
             content = file.read()
@@ -81,9 +101,10 @@ class Walker (compiladoresVisitor):
                 print("\033[1;31m"+"--- No se generó ningún código intermedio ---"+"\033[0m")
 
     def visitInstrucciones(self, ctx:compiladoresParser.InstruccionesContext):
-        self.visit(ctx.instruccion())
-        if ctx.instrucciones().getChildCount() != 0:
-            self.visit(ctx.instrucciones())
+        for i in range(ctx.getChildCount()):
+            child = ctx.getChild(i)
+            if hasattr(child, 'accept'):
+                self.visit(child)
         return
 
     def visitInstruccion(self, ctx: compiladoresParser.InstruccionContext):
@@ -109,45 +130,54 @@ class Walker (compiladoresVisitor):
             self.visit(ctx.iprototipo())
 
     def visitAsignacion(self, ctx: compiladoresParser.AsignacionContext):
-        # Determinar si es asignacionNum o asignacionBool
+        """Manejar asignaciones de todos los tipos de datos"""
         if ctx.asignacionNum():
             asignacion_num_ctx = ctx.asignacionNum()
             variable = asignacion_num_ctx.ID().getText()
-            # Procesar la expresión numérica
-            temporal = self.visit(asignacion_num_ctx.exp())
-            self.write(f'{variable} = {temporal}')
-            self.write(f'// Asignación numérica: {variable}')
-            return temporal
+            # ===== NUEVO: SIEMPRE generar temporal =====
+            resultado = self.visit(asignacion_num_ctx.exp())
+            if self.es_literal(resultado):
+                temp = self.temps.next_temporal()
+                self.write(f'{temp} = {resultado}')
+                #self.write(f'{variable} = {temp}')
+            else:
+                self.write(f'{variable} = {resultado}')
+            return resultado
         elif ctx.asignacionBool():
             asignacion_bool_ctx = ctx.asignacionBool()
             variable = asignacion_bool_ctx.ID().getText()
-            # Procesar la expresión booleana
-            temporal = self.visit(asignacion_bool_ctx.opbool())
-            self.write(f'{variable} = {temporal}')
-            self.write(f'// Asignación booleana: {variable}')
-            return temporal
+            # ===== NUEVO: SIEMPRE generar temporal =====
+            resultado = self.visit(asignacion_bool_ctx.opbool())
+            if self.es_literal(resultado):
+                temp = self.temps.next_temporal()
+                self.write(f'{temp} = {resultado}')
+                #self.write(f'{variable} = {temp}')
+            else:
+                self.write(f'{variable} = {resultado}')
+            return resultado
         else:
             self.write('// ERROR: Asignación desconocida')
             return None
 
-    def visitE(self, ctx: compiladoresParser.EContext):
+    def visitE(self, ctx: compiladoresParser.EContext, left=None):
+        """Procesar operaciones de suma y resta con evaluación completa"""
         if ctx.SUMA():
-            left_result = self.visit(ctx.term()) if ctx.term() else None
-            right_result = self.visit(ctx.e()) if ctx.e() else None
+            # ===== CAMBIO: Asegurar que siempre se genere temporal =====
+            right = self.visit(ctx.term())
             temp = self.temps.next_temporal()
-            self.write(f'{temp} = {left_result} + {right_result}')
-            self.write(f'// Operación resuelta: {left_result} + {right_result}')
+            self.write(f'{temp} = {left} + {right}')
+            # Continuar con más operaciones si existen
+            if ctx.e():
+                return self.visitE(ctx.e(), temp)
             return temp
         elif ctx.RESTA():
-            left_result = self.visit(ctx.term()) if ctx.term() else None
-            right_result = self.visit(ctx.e()) if ctx.e() else None
+            right = self.visit(ctx.term())
             temp = self.temps.next_temporal()
-            self.write(f'{temp} = {left_result} - {right_result}')
-            self.write(f'// Operación resuelta: {left_result} - {right_result}')
+            self.write(f'{temp} = {left} - {right}')
+            if ctx.e():
+                return self.visitE(ctx.e(), temp)
             return temp
-        elif ctx.term():
-            return self.visit(ctx.term())
-        return None
+        return left
 
     def visitInot(self, ctx: compiladoresParser.InotContext):
         left = self.visit(ctx.comp())
@@ -221,41 +251,20 @@ class Walker (compiladoresVisitor):
             return self.visitE(ctx.e(), left)
         return left
 
-    def visitE(self, ctx: compiladoresParser.EContext, left=None):
-        if ctx.SUMA():
-            right = self.visit(ctx.term())
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = {left} + {right}')
-            if ctx.e():
-                return self.visitE(ctx.e(), temp)
-            return temp
-        elif ctx.RESTA():
-            right = self.visit(ctx.term())
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = {left} - {right}')
-            if ctx.e():
-                return self.visitE(ctx.e(), temp)
-            return temp
-        return left
-
     def visitTerm(self, ctx: compiladoresParser.TermContext):
-        """===== MEJORADO: Procesamiento de términos con resolución inmediata ====="""
-        # Procesar factor
+        """Procesar términos con generación inmediata de temporales"""
         left_result = self.visit(ctx.factor())
         
-        # Si hay operaciones de multiplicación/división
-        if ctx.t().getChildCount() != 0:
-            # Guardar resultado izquierdo
-            self.expression_stack.append(left_result)
-            
-            # Procesar operaciones t
-            result = self.visit(ctx.t())
-            
-            return result if result else left_result
+        # ===== CAMBIO: Si hay operaciones T, generar temporal inmediatamente =====
+        if ctx.t() and ctx.t().getChildCount() > 0:
+            return self.visitT(ctx.t(), left_result)
         else:
+            # ===== CAMBIO: Incluso para factores simples, considerar temporal =====
+            # Solo si es una expresión compleja, generar temporal
             return left_result
 
     def visitT(self, ctx: compiladoresParser.TContext, left=None):
+        """Procesar operaciones de multiplicación/división/módulo"""
         if ctx.MULT():
             right = self.visit(ctx.factor())
             temp = self.temps.next_temporal()
@@ -282,79 +291,37 @@ class Walker (compiladoresVisitor):
     def visitFactor(self, ctx: compiladoresParser.FactorContext):
         # Caso: número entero
         if ctx.NUMERO():
-            value = ctx.NUMERO().getText()
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = {value}')
-            self.write(f'// Literal: {value}')
-            return temp
+            return ctx.NUMERO().getText()
         # Caso: número decimal
         elif ctx.DECIMAL():
-            value = ctx.DECIMAL().getText()
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = {value}')
-            self.write(f'// Literal: {value}')
-            return temp
+            return ctx.DECIMAL().getText()
         # Caso: identificador (variable)
         elif ctx.ID():
-            varname = ctx.ID().getText()
-            # Verifica si la variable existe en la tabla de símbolos (opcional)
-            # Si no existe, retorna un string especial y escribe un comentario de error
-            # if not self.tabla.buscar_global(varname):
-            #     self.write(f'// ERROR: Variable {varname} no declarada')
-            #     return "error_var"
-            return varname
+            return ctx.ID().getText()
         # Caso: character
         elif ctx.CARACTER():
-            value = ctx.CARACTER().getText()
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = {value}')
-            self.write(f'// Literal: {value}')
-            return temp
+            return ctx.CARACTER().getText()
         # Caso: literal booleano TRUE
         elif ctx.getToken(compiladoresParser.TRUE, 0):
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = 1')
-            self.write(f'// Literal: TRUE')
-            return temp
+            return "TRUE"
         # Caso: literal booleano FALSE
         elif ctx.getToken(compiladoresParser.FALSE, 0):
-            temp = self.temps.next_temporal()
-            self.write(f'{temp} = 0')
-            self.write(f'// Literal: FALSE')
-            return temp
+            return "FALSE"
         # Caso: expresión entre paréntesis
         elif ctx.PA():
+            # Expresión entre paréntesis
             return self.visit(ctx.exp())
         # Caso: llamada a función
         elif ctx.illamada():
-            result = self.visit(ctx.illamada())
-            if result is None:
-                self.write(f'// ERROR: Llamada a función no válida')
-                return "error_func"
-            return result
+            return self.visit(ctx.illamada())
         else:
-            self.write(f'// ERROR: Factor no reconocido')
+            self.write('// ERROR: Factor desconocido')
             return "error_factor"
-
-    def visitOpcomp(self, ctx):
-        """===== CORREGIDO: Mejor manejo de comparaciones con temporales ====="""
-        left = ctx.ID().getText()
-        operator = ctx.comps().getText()
-        
-        # Procesar factor derecho correctamente
-        factor_result = self.visit(ctx.factor())
-        
-        temp = self.temps.next_temporal()
-        self.file.write(f"{temp} = {left} {operator} {factor_result}\n")
-        self.temporales.append(temp)
-        self.write(f'// Comparación: {left} {operator} {factor_result}')
-        return temp
 
     def visitOpal(self, ctx: compiladoresParser.OpalContext):
         exp_ctx = ctx.exp()
         return self.visit(exp_ctx)
 
-    
     def visitExp(self, ctx: compiladoresParser.ExpContext):
         return self.visit(ctx.lor())
    
@@ -397,8 +364,19 @@ class Walker (compiladoresVisitor):
 
     def visitIreturn(self, ctx: compiladoresParser.IreturnContext):
         if self.inFuncion == 1:
-            resultado = self.visit(ctx.opal())
-            self.file.write(f'push {resultado}\n')
+            # ===== CORRECCIÓN: Evaluar la expresión de retorno =====
+            if ctx.opal():
+                resultado = self.visit(ctx.opal())
+                # Si es un literal, generar temporal
+                if self.es_literal(resultado):
+                    temp = self.temps.next_temporal()
+                    self.write(f'{temp} = {resultado}')
+                    self.file.write(f'push {temp}\n')
+                else:
+                    self.file.write(f'push {resultado}\n')
+            else:
+                # Return sin valor
+                self.file.write(f'push 0\n')
 
     def visitIif(self, ctx:compiladoresParser.IifContext):
         self.visit(ctx.cond())
@@ -451,14 +429,21 @@ class Walker (compiladoresVisitor):
         function_name = ctx.ID().getText()
         # Extraer argumentos de la llamada
         args = self.extraer_argumentos_llamada(ctx.argumento())
-        self.write(f'// Llamada a función: {function_name}')
-        for arg in reversed(args):
+        
+        # ===== CORRECCIÓN: Manejo más claro de llamadas =====
+        # Empujar argumentos en orden normal (se sacan en orden inverso)
+        for arg in args:
             self.file.write(f'push {arg}\n')
-            self.write(f'// Argumento: {arg}')
+        
+        # Obtener etiquetas de función
         etiquetas = self.labels.etiqueta_funcion(function_name)
+        
+        # Empujar dirección de retorno y saltar
         self.file.write(f'push {etiquetas[1]}\n')
         self.file.write(f'jmp {etiquetas[0]}\n')
         self.file.write(f'label {etiquetas[1]}\n')
+        
+        # El resultado de la función se obtiene de la pila
         temp = self.temps.next_temporal()
         self.file.write(f'pop {temp}\n')
         return temp
@@ -468,114 +453,219 @@ class Walker (compiladoresVisitor):
         args = []
         if argumentos_ctx is None:
             return args
+        
         # Caso base: solo un argumento
         if argumentos_ctx.opal():
             arg = self.visit(argumentos_ctx.opal())
             args.append(arg)
+        
         # Caso recursivo: opal C argumento
         if argumentos_ctx.C():
             siguiente = argumentos_ctx.argumento()
             if siguiente:
                 args += self.extraer_argumentos_llamada(siguiente)
+        
         return args
 
     def visitDeclaracion(self, ctx:compiladoresParser.DeclaracionContext):
         tipo = ctx.tipo().getText() if ctx.tipo() else ""
-        # Caso: int x;
+        
+        # Caso: tipo x; (solo declaración)
         if ctx.ID():
             nombre = ctx.ID().getText()
             self.write(f'{tipo} {nombre}')
-        # Caso: int x = 1; o int x = ...;
+            
+        # Caso: tipo x = valor; (declaración con inicialización)
         elif ctx.asignacion():
             asignacion_ctx = ctx.asignacion()
-            # Puede ser asignacionNum o asignacionBool
             if asignacion_ctx.asignacionNum():
                 nombre = asignacion_ctx.asignacionNum().ID().getText()
+                # ===== CORRECCIÓN: Mostrar tipo explícitamente =====
+                #self.write(f'{tipo} {nombre}')
+                # ===== NUEVO: SIEMPRE generar temporal para inicializaciones =====
+                resultado = self.visit(asignacion_ctx.asignacionNum().exp())
+                # Si el resultado es un literal, crear temporal
+                if self.es_literal(resultado):
+                    temp = self.temps.next_temporal()
+                    self.write(f'{temp} = {resultado}')
+                    self.write(f'{nombre} = {temp}')
+                else:
+                    self.write(f'{nombre} = {resultado}')
             elif asignacion_ctx.asignacionBool():
                 nombre = asignacion_ctx.asignacionBool().ID().getText()
-            else:
-                nombre = "??"
-            resultado = self.visit(ctx.asignacion())
-            # Aquí se conecta el temporal con la variable
-            #self.write(f'{nombre} = {resultado}')
-        # Declaraciones múltiples
+                # ===== CORRECCIÓN: Mostrar tipo explícitamente =====
+                #self.write(f'{tipo} {nombre}')
+                # ===== NUEVO: SIEMPRE generar temporal para inicializaciones booleanas =====
+                resultado = self.visit(asignacion_ctx.asignacionBool().opbool())
+                if self.es_literal(resultado):
+                    temp = self.temps.next_temporal()
+                    self.write(f'{temp} = {resultado}')
+                    self.write(f'{nombre} = {temp}')
+                else:
+                    self.write(f'{nombre} = {resultado}')
+
+        # ===== CORRECCIÓN: Declaraciones múltiples dentro del método =====
         if ctx.dec():
             self.visit(ctx.dec())
 
-    def visitInit(self, ctx: compiladoresParser.InitContext):
-        # Usar asignacion() directamente según tu gramática
-        if ctx.asignacion():
-            self.visit(ctx.asignacion())
+    def visitDec(self, ctx: compiladoresParser.DecContext):
+        """Procesar declaraciones múltiples como double a, b=5.5, c;"""
+        if ctx.C():
+            # ===== CORRECCIÓN: Obtener tipo del contexto padre =====
+            tipo_padre = self.get_tipo_contexto_actual(ctx)
+            
+            if ctx.ID():
+                # Caso: , variable
+                nombre = ctx.ID().getText()
+                self.write(f'{tipo_padre} {nombre}')
+            elif ctx.asignacion():
+                # Caso: , variable = valor
+                asignacion_ctx = ctx.asignacion()
+                if asignacion_ctx.asignacionNum():
+                    nombre = asignacion_ctx.asignacionNum().ID().getText()
+                    self.write(f'{tipo_padre} {nombre}')
+                    resultado = self.visit(asignacion_ctx.asignacionNum().exp())
+                    if self.es_literal(resultado):
+                        temp = self.temps.next_temporal()
+                        self.write(f'{temp} = {resultado}')
+                        self.write(f'{nombre} = {temp}')
+                    else:
+                        self.write(f'{nombre} = {resultado}')
+                elif asignacion_ctx.asignacionBool():
+                    nombre = asignacion_ctx.asignacionBool().ID().getText()
+                    self.write(f'{tipo_padre} {nombre}')
+                    resultado = self.visit(asignacion_ctx.asignacionBool().opbool())
+                    if self.es_literal(resultado):
+                        temp = self.temps.next_temporal()
+                        self.write(f'{temp} = {resultado}')
+                        self.write(f'{nombre} = {temp}')
+                    else:
+                        self.write(f'{nombre} = {resultado}')
+            
+            # Procesar siguiente declaración
+            if ctx.dec():
+                self.visit(ctx.dec())
 
     def visitBloque(self, ctx: compiladoresParser.BloqueContext):
-        self.visit(ctx.instrucciones())
+        # ===== CORRECCIÓN: Verificar que instrucciones() existe =====
+        if ctx.instrucciones():
+            self.visit(ctx.instrucciones())
+        else:
+            print("DEBUG: Bloque sin instrucciones")
 
     def visitIfuncion(self, ctx: compiladoresParser.IfuncionContext):
-        args = []
-
-        def extraer_argumentos(param_ctx):
-            if param_ctx is None:
-                return
-            # param : p C param | p
-            if param_ctx.p():
-                tipo = param_ctx.p().tipo().getText()
-                nombre = param_ctx.p().ID().getText()
-                args.append((tipo, nombre))
-                if param_ctx.C():
-                    extraer_argumentos(param_ctx.param())
-            # Si param está vacío, no hacer nada
-
-        extraer_argumentos(ctx.param())
-
-        etiquetas = self.labels.etiqueta_funcion(ctx.ID().getText())
+        function_name = ctx.ID().getText() if ctx.ID() else "anonymous"
+        etiquetas = self.labels.etiqueta_funcion(function_name)
+        
         self.file.write(f'label {etiquetas[0]}\n')
-        self.file.write(f'pop t0\n')
+        self.file.write(f'pop t0\n')  # Dirección de retorno
+        
+        # ===== CORRECCIÓN: Procesar argumentos correctamente =====
+        argumentos_funcion = []
+        if ctx.param():
+            argumentos_funcion = self.extraer_argumentos_param(ctx.param())
+            # Procesar argumentos en orden inverso (como vienen de la pila)
+            for tipo, nombre in reversed(argumentos_funcion):
+                self.file.write(f'pop {nombre}\n')
+                # ===== CAMBIO: NO escribir tipo en código intermedio =====
 
-        for idx, arg in enumerate(args):
-            tipo, nombre = arg
-            self.file.write(f'pop {nombre}\n')
+        # Procesar declaraciones de variables locales
         self.inFuncion = 1
         self.visit(ctx.bloque())
         self.inFuncion = 0
-        self.file.write(f'jmp t0\n')
+        
+        self.file.write(f'jmp t0\n')  # Retorno
 
-    def visitBloque(self, ctx:compiladoresParser.BloqueContext):
-        if ctx.instrucciones():
-            self.visit(ctx.instrucciones())
-        elif ctx.instruccion():
-            self.visit(ctx.instruccion())
+    def extraer_argumentos_param(self, param_ctx):
+        """Extrae argumentos de la definición de función"""
+        args = []
+        ctx = param_ctx
+        
+        # Verificar si hay un 'p' directamente
+        if hasattr(ctx, 'p') and ctx.p():
+            tipo = ctx.p().tipo().getText()
+            nombre = ctx.p().ID().getText()
+            args.append((tipo, nombre))
+        
+        # Navegación recursiva
+        while ctx is not None and hasattr(ctx, 'param') and ctx.param():
+            ctx = ctx.param()
+            if hasattr(ctx, 'p') and ctx.p():
+                tipo = ctx.p().tipo().getText()
+                nombre = ctx.p().ID().getText()
+                args.append((tipo, nombre))
+            else:
+                break
+        
+        return args
 
     def visitIelse(self, ctx: compiladoresParser.IelseContext):
-        if ctx.instruccion():
-            self.visit(ctx.instruccion())
-        elif ctx.iif():
-            self.visit(ctx.iif())
+        self.visit(ctx.instruccion())
 
     def visitCond(self, ctx: compiladoresParser.CondContext):
-        # La condición solo tiene un hijo: opal
-        if ctx.opal():
-            resultado = self.visit(ctx.opal())
-            if resultado is not None:
-                self.temporales.append(resultado)
-            else:
-                self.write("// ERROR: Condición no válida, no se generó temporal")
-            return resultado
-        # Si en el futuro agregas opcomp, opbool, etc., puedes agregarlos aquí:
-        if ctx.opcomp():
-            return self.visit(ctx.opcomp())
-        if ctx.opbool():
-            return self.visit(ctx.opbool())
-        # Si no coincide ningún caso, devolver None
-        return None
-    
+        return self.visit(ctx.opal())
+
     def visitErrorNode(self, node):
-        self.write(f"// ERROR: {node.getText()}")
+        self.write('// ERROR: Nodo de error sintáctico')
         print(f"---- ERROR EN NODO: {node.getText()} ----")
         return super().visitErrorNode(node)
-    
+
     def write(self, text):
-        """Escribir con indentación apropiada"""
-        if text.startswith('//'):
+        """Escribir línea al archivo de código intermedio"""
+        if self.file:
             self.file.write(text + '\n')
         else:
-            self.file.write('    ' * self.indent_level + text + '\n')
+            print(f"WARNING: Trying to write without file: {text}")
+
+    def get_tipo_contexto_actual(self, ctx):
+        """Obtener el tipo de dato del contexto actual de declaración"""
+        # Navegar hacia el padre para encontrar el tipo
+        parent = ctx.parentCtx
+        while parent:
+            if hasattr(parent, 'tipo') and parent.tipo():
+                return parent.tipo().getText()
+            parent = parent.parentCtx
+        return "int"  # Tipo por defecto
+
+    def es_literal(self, valor):
+        """Determina si un valor es un literal (número, booleano, etc.)"""
+        if not valor:
+            return False
+        valor_str = str(valor).strip()
+        # Es literal si es número, decimal, TRUE, FALSE
+        return (valor_str.replace('.', '').replace('-', '').isdigit() or 
+                valor_str in ['TRUE', 'FALSE', 'true', 'false'])
+
+    def visitOpbool(self, ctx: compiladoresParser.OpboolContext):
+        """Procesar expresiones booleanas"""
+        left = self.visit(ctx.factorBool())
+        if ctx.bools():
+            return self.visitBools(ctx.bools(), left)
+        return left
+
+    def visitBools(self, ctx: compiladoresParser.BoolsContext, left=None):
+        """Procesar operadores booleanos encadenados"""
+        if ctx.OR():
+            right = self.visit(ctx.opbool())
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = {left} || {right}')
+            return temp
+        elif ctx.AND():
+            right = self.visit(ctx.opbool())
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = {left} && {right}')
+            return temp
+        return left
+
+    def visitFactorBool(self, ctx: compiladoresParser.FactorBoolContext):
+        """Procesar factores booleanos"""
+        if ctx.TRUE():
+            return "TRUE"
+        elif ctx.FALSE():
+            return "FALSE"
+        elif ctx.ID():
+            return ctx.ID().getText()
+        elif ctx.PA():
+            # Expresión booleana entre paréntesis
+            return self.visit(ctx.opbool())
+        return "error_bool"
