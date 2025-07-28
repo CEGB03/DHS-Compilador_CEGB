@@ -33,7 +33,7 @@ def funcion
 		// EXIT IF
 		Línea 24: Asignación válida: 'z' = 'd+a+y'.
 		xy(c, a)
-		Línea 25: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
+		Línea 25: Asignación válida: 'y' = '2+xy(c,a)+z/y+d'.
 		Línea 26: Asignación válida: 'z' = '3'.
 		Línea 27: La variable 'e' se declaró e inicializó en el contexto actual.
 		Línea 28: Asignación válida: 'd' = '2.25'.

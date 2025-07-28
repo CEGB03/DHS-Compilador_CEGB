@@ -22,7 +22,7 @@ int main() {
     }
 
     z = d + a + y;
-    y = 2 + xy(c, a) + z + y + d;
+    y = 2 + xy(c, a) + z / y + d;
     z = 3;
     bool e = c;
     d = 2.25;

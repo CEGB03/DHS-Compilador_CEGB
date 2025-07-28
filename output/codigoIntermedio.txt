@@ -49,8 +49,8 @@ jmp xy
 label l6
 pop t20
 t21 = 2 + t20
-t22 = t21 + z
-t23 = t22 + y
+t22 = z / y
+t23 = t21 + t22
 t24 = t23 + d
 t25 = t24
 y = t25

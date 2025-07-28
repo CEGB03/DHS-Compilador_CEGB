@@ -1,0 +1,3 @@
+- Tener mas en cuenta otros casos de prueba.
+- Log del error de mas parameteros de las funciones.
+- Las Optimizaciones se pueden resumir más, revisar versiones anteriores.
