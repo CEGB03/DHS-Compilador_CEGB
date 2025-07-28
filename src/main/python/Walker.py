@@ -143,26 +143,20 @@ class Walker (compiladoresVisitor):
         if ctx.asignacionNum():
             asignacion_num_ctx = ctx.asignacionNum()
             variable = asignacion_num_ctx.ID().getText()
-            # ===== NUEVO: SIEMPRE generar temporal =====
+            # ===== CORRECCIÓN: SIEMPRE generar temporal =====
             resultado = self.visit(asignacion_num_ctx.exp())
-            if self.es_literal(resultado):
-                temp = self.temps.next_temporal()
-                self.write(f'{temp} = {resultado}')
-                #self.write(f'{variable} = {temp}')
-            else:
-                self.write(f'{variable} = {resultado}')
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = {resultado}')
+            self.write(f'{variable} = {temp}')
             return resultado
         elif ctx.asignacionBool():
             asignacion_bool_ctx = ctx.asignacionBool()
             variable = asignacion_bool_ctx.ID().getText()
-            # ===== NUEVO: SIEMPRE generar temporal =====
+            # ===== CORRECCIÓN: SIEMPRE generar temporal =====
             resultado = self.visit(asignacion_bool_ctx.opbool())
-            if self.es_literal(resultado):
-                temp = self.temps.next_temporal()
-                self.write(f'{temp} = {resultado}')
-                #self.write(f'{variable} = {temp}')
-            else:
-                self.write(f'{variable} = {resultado}')
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = {resultado}')
+            self.write(f'{variable} = {temp}')
             return resultado
         else:
             self.write('// ERROR: Asignación desconocida')
@@ -507,15 +501,16 @@ class Walker (compiladoresVisitor):
     def visitDeclaracion(self, ctx:compiladoresParser.DeclaracionContext):
         tipo = ctx.tipo().getText() if ctx.tipo() else ""
         
-        # Caso: tipo x; (solo declaración)
+        # Caso: tipo x; (declaración simple - NO generar código intermedio)
         if ctx.ID():
             nombre = ctx.ID().getText()
-            # ===== CAMBIO: NO escribir tipos en código intermedio =====
-            # Solo procesamos sin generar código
+            # ===== CAMBIO: NO asignar valores por defecto =====
+            # Las variables declaradas sin inicialización no generan código intermedio
+            pass
         
-        # Caso: tipo x = valor; (declaración con inicialización)  
+        # Caso: tipo x = valor; (declaración con inicialización)
         elif ctx.asignacion():
-            # Procesar asignación sin mostrar tipos
+            # Solo procesar asignaciones explícitas
             self.visit(ctx.asignacion())
 
         # Declaraciones múltiples
@@ -523,39 +518,18 @@ class Walker (compiladoresVisitor):
             self.visit(ctx.dec())
 
     def visitDec(self, ctx: compiladoresParser.DecContext):
-        """Procesar declaraciones múltiples como double a, b=5.5, c;"""
+        """Procesar declaraciones múltiples SIN valores por defecto"""
         if ctx.C():
-            # ===== CORRECCIÓN: Obtener tipo del contexto padre =====
-            tipo_padre = self.get_tipo_contexto_actual(ctx)
-            
             if ctx.ID():
-                # Caso: , variable
+                # Caso: , variable (declaración simple - NO generar código)
                 nombre = ctx.ID().getText()
-                self.write(f'{tipo_padre} {nombre}')
+                # ===== CAMBIO: NO asignar valores por defecto =====
+                # Solo declarar la variable sin generar código intermedio
+                pass
             elif ctx.asignacion():
-                # Caso: , variable = valor
-                asignacion_ctx = ctx.asignacion()
-                if asignacion_ctx.asignacionNum():
-                    nombre = asignacion_ctx.asignacionNum().ID().getText()
-                    self.write(f'{tipo_padre} {nombre}')
-                    resultado = self.visit(asignacion_ctx.asignacionNum().exp())
-                    if self.es_literal(resultado):
-                        temp = self.temps.next_temporal()
-                        self.write(f'{temp} = {resultado}')
-                        self.write(f'{nombre} = {temp}')
-                    else:
-                        self.write(f'{nombre} = {resultado}')
-                elif asignacion_ctx.asignacionBool():
-                    nombre = asignacion_ctx.asignacionBool().ID().getText()
-                    self.write(f'{tipo_padre} {nombre}')
-                    resultado = self.visit(asignacion_ctx.asignacionBool().opbool())
-                    if self.es_literal(resultado):
-                        temp = self.temps.next_temporal()
-                        self.write(f'{temp} = {resultado}')
-                        self.write(f'{nombre} = {temp}')
-                    else:
-                        self.write(f'{nombre} = {resultado}')
-            
+                # Caso: , variable = valor (solo procesar asignaciones explícitas)
+                self.visit(ctx.asignacion())
+        
             # Procesar siguiente declaración
             if ctx.dec():
                 self.visit(ctx.dec())
@@ -570,27 +544,24 @@ class Walker (compiladoresVisitor):
     def visitIfuncion(self, ctx: compiladoresParser.IfuncionContext):
         function_name = ctx.ID().getText() if ctx.ID() else "anonymous"
         
-        # ===== MEJORA: Usar el patrón del código de referencia =====
         # Generar etiqueta de función directamente con el nombre
         self.file.write(f'label {function_name}\n')
         
-        # Dirección de retorno (usar variable temporal específica)
+        # Dirección de retorno
         direccion_retorno = f't{self.temps.counter}'
         self.temps.counter += 1
         self.file.write(f'pop {direccion_retorno}\n')
         
-        # ===== MEJORA: Procesar argumentos de forma más sistemática =====
+        # Procesar argumentos SIN declarar tipos ni valores por defecto
         if ctx.param():
-            # Primero extraer argumentos y procesarlos en orden
             self.procesar_argumentos_funcion(ctx.param())
-        
-        # Procesar cuerpo de la función
+    
+        # ===== CAMBIO: Procesar solo asignaciones explícitas =====
         self.inFuncion = 1
         self.visit(ctx.bloque())
         self.inFuncion = 0
         
-        # ===== MEJORA: Manejo de retorno mejorado =====
-        # Verificar si hay valor de retorno pendiente
+        # Manejo de retorno
         if hasattr(self, 'var_retorno') and self.var_retorno:
             valor_retorno = self.var_retorno.pop()
             self.file.write(f'push {valor_retorno}\n')
@@ -599,22 +570,22 @@ class Walker (compiladoresVisitor):
         self.file.write(f'jmp {direccion_retorno}\n')
 
     def procesar_argumentos_funcion(self, param_ctx):
-        """Procesar argumentos de función de forma sistemática"""
-        # ===== NUEVO: Lista para argumentos de función =====
+        """Procesar argumentos de función SIN valores por defecto"""
         if not hasattr(self, 'argumentos_funciones'):
             self.argumentos_funciones = []
-        
+    
         # Extraer argumentos
         args = self.extraer_argumentos_param(param_ctx)
-        
+    
         # Procesar argumentos en orden inverso (como vienen de la pila)
         for tipo, nombre in reversed(args):
             self.argumentos_funciones.append(nombre)
-        
-        # Escribir pops para argumentos
+    
+        # ===== CAMBIO: Solo escribir pops para argumentos =====
         for arg in self.argumentos_funciones:
             self.file.write(f'pop {arg}\n')
-        
+    
+        # ===== ELIMINADO: NO asignar valores por defecto =====
         # Limpiar lista
         self.argumentos_funciones.clear()
 

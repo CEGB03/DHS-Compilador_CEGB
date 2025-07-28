@@ -1,65 +1,65 @@
 t0 = 4.5
-q = t0
+q = 4.5
 label main
 pop t1
 t2 = 1
-x = t2
+x = 1
 t3 = 1
-i = t3
+i = 1
 t4 = 0
-z = t4
+z = 0
 t5 = 0
-a = t5
+a = 0
 t6 = TRUE
-c = t6
+c = TRUE
 t7 = 0.3
-d = t7
+d = 0.3
 label l0
-t8 = x < 0
-t9 = z > 0
+t8 = 1 < 0
+t9 = 0 > 0
 t10 = t8 && t9
 ifnjmp t10, l1
 t11 = 0
-y = t11
+y = 0
 jmp l0
 label l1
-t12 = i == 1
+t12 = 1 == 1
 ifnjmp t12, l2
 label l3
-t13 = x < 10
+t13 = 1 < 10
 ifnjmp t13, l4
 t14 = 1
-y = t14
+y = 1
 jmp l3
 label l4
 jmp l5
 label l2
-t15 = 2 + d
+t15 = 2 + 0.3
 t16 = t15
 d = t16
 label l5
-t17 = d + a
-t18 = t17 + y
+t17 = 0.3 + 0
+t18 = t17 + 1
 t19 = t18
 z = t19
-push c
-push a
+push TRUE
+push 0
 push l6
 jmp xy
 label l6
 pop t20
 t21 = 2 + t20
-t22 = t21 + z
-t23 = t22 + y
-t24 = t23 + d
+t22 = t21 + 0
+t23 = t22 + 1
+t24 = t23 + 0.3
 t25 = t24
 y = t25
 t26 = 3
-z = t26
-t27 = c
-e = t27
+z = 3
+t27 = TRUE
+e = TRUE
 t28 = 2.25
-d = t28
+d = 2.25
 t29 = TRUE && FALSE
 t30 = t29
 c = t30

@@ -1,63 +1,86 @@
+t0 = 4.5
+q = 4.5
 label main
 pop t1
-int i
+t2 = 1
+x = 1
+t3 = 1
 i = 1
-int j
-int z
+t4 = 0
 z = 0
+t5 = 0
+a = 0
 t6 = TRUE
+c = TRUE
+t7 = 0.3
+d = 0.3
 label l0
-t8 = x < 0
+t8 = 1 < 0
 t9 = 0 > 0
 t10 = t8 && t9
 ifnjmp t10, l1
+t11 = 0
+y = 0
 jmp l0
 label l1
+t12 = 1 == 1
 ifnjmp t12, l2
 label l3
-t13 = x < 10
+t13 = 1 < 10
 ifnjmp t13, l4
+t14 = 1
+y = 1
 jmp l3
 label l4
 jmp l5
 label l2
-t15 = 2 + d
-d = t15
+t15 = 2 + 0.3
+t16 = t15
+d = t16
 label l5
-t16 = t15 + a
-t17 = t16 + y
-z = t17
-push c
-push a
+t17 = 0.3 + 0
+t18 = t17 + 1
+t19 = t18
+z = t19
+push TRUE
+push 0
 push l6
 jmp xy
 label l6
-pop t18
-t19 = 2 + t18
-t20 = t19 + t17
-t21 = t20 + y
-t22 = t21 + t15
-y = t22
-e = c
-t25 = FALSE
-c = t25
-t26 = TRUE
+pop t20
+t21 = 2 + t20
+t22 = t21 + 0
+t23 = t22 + 1
+t24 = t23 + 0.3
+t25 = t24
+y = t25
+t26 = 3
+z = 3
 t27 = TRUE
-e = t27
-push 0
+e = TRUE
+t28 = 2.25
+d = 2.25
+t29 = FALSE
+t30 = t29
+c = t30
+t31 = TRUE
+t32 = TRUE
+t33 = t32
+e = t33
 jmp t1
 label xy
-pop t28
+pop t34
 pop argB
 pop argA
-int k
-p = argA
-k = argB
+t35 = argA
+p = t35
+t36 = argB
+k = t36
 ifnjmp argA, l7
-t29 = argB + 1
+t37 = argB + 1
 jmp l8
 label l7
-t30 = argB + 2
+t38 = argB + 2
 label l8
-push t30
-jmp t28
+push t38
+jmp t34
