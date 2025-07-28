@@ -21,7 +21,7 @@ t11 = 0
 jmp l0
 label l1
 t12 = i == 1
-ifnjmp error_cond, l2
+ifnjmp t12, l2
 label l3
 t13 = x < 10
 ifnjmp t13, l4
@@ -64,7 +64,7 @@ pop argA
 int k
 p = argA
 k = argB
-ifnjmp error_cond, l7
+ifnjmp p, l7
 t29 = k + 1
 jmp l8
 label l7

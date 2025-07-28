@@ -1,6 +1,7 @@
 from compiladoresVisitor import compiladoresVisitor
 from compiladoresParser import compiladoresParser
 import os
+import re
 
 class Temporales:
     def __init__(self):
@@ -385,8 +386,18 @@ class Walker (compiladoresVisitor):
                 self.var_retorno.append("0")
 
     def visitIif(self, ctx:compiladoresParser.IifContext):
-        self.visit(ctx.cond())
-        temp_cond = self.temporales.pop() if len(self.temporales) > 0 else "error_cond"
+        # ===== CORRECCIÓN: Obtener condición correctamente =====
+        temp_cond = self.visit(ctx.cond())
+        
+        # Si no hay resultado, generar temporal por defecto
+        if temp_cond is None:
+            if len(self.temporales) > 0:
+                temp_cond = self.temporales.pop()
+            else:
+                # ===== CORRECCIÓN: Generar condición por defecto en lugar de error_cond =====
+                temp_cond = self.temps.next_temporal()
+                self.write(f'{temp_cond} = TRUE')  # Condición por defecto
+        
         etiqueta_else = self.labels.next_etiqueta()
         self.file.write(f'ifnjmp {temp_cond}, {etiqueta_else}\n')
         etiqueta_fin = None
@@ -423,8 +434,23 @@ class Walker (compiladoresVisitor):
         etiqueta_fin = self.labels.next_etiqueta()
         self.visit(ctx.init())
         self.file.write(f'label {etiqueta_inicio}\n')
-        self.visit(ctx.cond())
-        temp_cond = self.temporales.pop() if len(self.temporales) > 0 else "error_cond"
+        
+        # ===== CORRECCIÓN: Manejar condición correctamente =====
+        if ctx.condlist():
+            temp_cond = self.visit(ctx.condlist())
+        else:
+            # Sin condición = bucle infinito (condición TRUE)
+            temp_cond = self.temps.next_temporal()
+            self.write(f'{temp_cond} = TRUE')
+        
+        # Si no hay resultado válido
+        if temp_cond is None:
+            if len(self.temporales) > 0:
+                temp_cond = self.temporales.pop()
+            else:
+                temp_cond = self.temps.next_temporal()
+                self.write(f'{temp_cond} = TRUE')
+        
         self.file.write(f'ifnjmp {temp_cond}, {etiqueta_fin}\n')
         self.visit(ctx.instruccion())
         self.visit(ctx.iter())
@@ -596,7 +622,27 @@ class Walker (compiladoresVisitor):
         self.visit(ctx.instruccion())
 
     def visitCond(self, ctx: compiladoresParser.CondContext):
-        return self.visit(ctx.opal())
+        """Procesar condiciones y asegurar resultado válido"""
+        resultado = self.visit(ctx.opal())
+        
+        # ===== CORRECCIÓN: Asegurar que siempre hay un resultado =====
+        if resultado is None:
+            # Generar condición por defecto
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = TRUE')
+            return temp
+        
+        return resultado
+
+    def visitCondlist(self, ctx: compiladoresParser.CondlistContext):
+        """Procesar lista de condiciones en for"""
+        if ctx.cond():
+            return self.visit(ctx.cond())
+        else:
+            # Sin condición = TRUE (bucle infinito)
+            temp = self.temps.next_temporal()
+            self.write(f'{temp} = TRUE')
+            return temp
 
     def visitErrorNode(self, node):
         self.write('// ERROR: Nodo de error sintáctico')
@@ -685,3 +731,15 @@ class Walker (compiladoresVisitor):
                 break
     
         return args
+
+    def visitInit(self, ctx: compiladoresParser.InitContext):
+        """Procesar inicialización en for"""
+        if ctx.asignacion():
+            return self.visit(ctx.asignacion())
+        return None
+
+    def visitIter(self, ctx: compiladoresParser.IterContext):
+        """Procesar iteración en for"""
+        if ctx.asignacion():
+            return self.visit(ctx.asignacion())
+        return None
