@@ -3,68 +3,70 @@ Declarada Función: int f: Prototipado? True en línea 1
 Argumentos:  [('int', 'y')]
 Declarada Función: int xy: Prototipado? True en línea 2
 Argumentos:  [('bool', 'argA'), ('int', 'argB')]
-def funcion BLOQUE_FUNCION
+Línea 4: La variable 'q' se declaró e inicializó en el contexto actual.
+def funcion
 	{
-		Línea 5: La variable 'x' se declaró e inicializó en el contexto actual.
-		Línea 5: La variable 'i' se declaró e inicializó en el contexto actual.
-		Línea 6: La variable 'y' se declaró en el contexto actual.
-		Línea 6: La variable 'j' se declaró en el contexto actual.
-		Línea 6: La variable 'z' se declaró e inicializó en el contexto actual.
-		Línea 7: La variable 'a' se declaró e inicializó en el contexto actual.
-		Línea 8: La variable 'c' se declaró e inicializó en el contexto actual.
-		Línea 9: La variable 'd' se declaró e inicializó en el contexto actual.
+		Línea 7: La variable 'x' se declaró e inicializó en el contexto actual.
+		Línea 7: La variable 'i' se declaró e inicializó en el contexto actual.
+		Línea 8: La variable 'y' se declaró en el contexto actual.
+		Línea 8: La variable 'j' se declaró en el contexto actual.
+		Línea 8: La variable 'z' se declaró e inicializó en el contexto actual.
+		Línea 9: La variable 'a' se declaró e inicializó en el contexto actual.
+		Línea 10: La variable 'c' se declaró e inicializó en el contexto actual.
+		Línea 11: La variable 'd' se declaró e inicializó en el contexto actual.
 		while (...)
-		Línea 12: Asignación válida: 'y' = '0'.
+		Línea 14: Asignación válida: 'y' = '0'.
 		// FIN WHILE
 		if (...)
 		{
 			while (...)
 			{
-				Línea 16: Asignación válida: 'y' = '1'.
+				Línea 18: Asignación válida: 'y' = '1'.
 			}
 			// FIN WHILE
 		}
 		else
 		{
-			Línea 19: Asignación válida: 'd' = '2+d'.
+			Línea 21: Asignación válida: 'd' = '2+d'.
 		}
 		// EXIT ELSE
 		// EXIT IF
-		Línea 22: Asignación válida: 'z' = 'd+a+y'.
-		Línea 22: ERROR SEMANTICO: La variable 'z' ya está declarada en el contexto local.
+		Línea 24: Asignación válida: 'z' = 'd+a+y'.
 		xy(c, a)
-		Línea 23: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
-		Línea 24: Asignación válida: 'z' = '3'.
-		Línea 25: La variable 'e' se declaró e inicializó en el contexto actual.
-		Línea 26: Asignación válida: 'd' = '2.25'.
-		Línea 27: Asignación válida: 'c' = 'TRUE&&FALSE'.
-		Línea 28: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
-		Línea 30: Return procesado: 0
+		Línea 25: Asignación válida: 'y' = '2+xy(c,a)+z+y+d'.
+		Línea 26: Asignación válida: 'z' = '3'.
+		Línea 27: La variable 'e' se declaró e inicializó en el contexto actual.
+		Línea 28: Asignación válida: 'd' = '2.25'.
+		Línea 29: Asignación válida: 'c' = 'TRUE&&FALSE'.
+		Línea 30: Asignación válida: 'e' = 'FALSE||TRUE||TRUE'.
+		Línea 32: Return procesado: 0
 	}
-	Línea 4: Definición de función 'main' agregada.
+	Línea 6: Definición de función 'main' agregada.
+	Línea 6: Función 'main' marcada automáticamente como usada.
 // EXIT FUNCION
-def funcion BLOQUE_FUNCION
+def funcion
+	Argumento agregado: bool argA
+	Argumento agregado: int argB
 	{
-		Línea 34: La variable 'k' se declaró en el contexto actual.
-		Línea 34: La variable 'm' se declaró en el contexto actual.
-		Línea 35: La variable 'h' se declaró en el contexto actual.
-		Línea 36: ERROR SEMANTICO: El identificador 'argA' no fue declarado previamente.
-		Línea 36: Asignación válida: 'h' = 'argA'.
-		Línea 37: ERROR SEMANTICO: El identificador 'argB' no fue declarado previamente.
-		Línea 37: Asignación válida: 'k' = 'argB'.
+		Línea 36: La variable 'm' se declaró en el contexto actual.
 		if (...)
-		Línea 39: Return procesado: (k+1)
+		Línea 38: Return procesado: (argB+1)
 		else
-		Línea 41: Return procesado: (k+2)
+		Línea 40: Return procesado: (argB+2)
 		// EXIT ELSE
 		// EXIT IF
 	}
-	Línea 33: Definición de función 'xy' completada.
+	Línea 35: Definición de función 'xy' completada.
 // EXIT FUNCION
 Fin de la compilacion
 
 
 Tabla de Simbolos:
+Contexto Global: 
+Función: int f(args=[('int', 'y')]) | Prototipado? Sí, Desarrollado? No, Usado? No
+Función: int xy(args=[('bool', 'argA'), ('int', 'argB')]) | Prototipado? Sí, Desarrollado? Sí, Usado? Sí
+Variable: double q: Inicializado? True, Usado? False
+
 Contexto main: 
 Variable: int x: Inicializado? True, Usado? True
 Variable: int i: Inicializado? True, Usado? True
@@ -75,11 +77,11 @@ Variable: int a: Inicializado? True, Usado? True
 Variable: bool c: Inicializado? True, Usado? True
 Variable: double d: Inicializado? True, Usado? True
 Variable: bool e: Inicializado? True, Usado? False
-Función: int main(args=[]) | Prototipado? No, Desarrollado? Sí, Usado? No
+Función: int main(args=[]) | Prototipado? No, Desarrollado? Sí, Usado? Sí
 
 Contexto xy: 
-Variable: int k: Inicializado? True, Usado? True
+Variable: bool argA: Inicializado? True, Usado? True
+Variable: int argB: Inicializado? True, Usado? True
 Variable: int m: Inicializado? False, Usado? False
-Variable: bool h: Inicializado? True, Usado? True
 
 

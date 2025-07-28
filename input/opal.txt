@@ -1,6 +1,8 @@
 int f(int y);
 int xy(bool argA, int argB);
 
+double q = 4.5;
+
 int main() {
     int x = 1, i = 1;
     int y, j, z=0;
@@ -19,7 +21,7 @@ int main() {
         d = 2 + d;
     }
 
-    int z = d + a + y;
+    z = d + a + y;
     y = 2 + xy(c, a) + z + y + d;
     z = 3;
     bool e = c;
@@ -31,12 +33,9 @@ int main() {
 }
 
 int xy(bool argA, int argB) {
-    int k, m;
-    bool h;
-    h=argA;
-    k=argB;
-    if (h)
-        return (k + 1);
+    int m;
+    if (argA)
+        return (argB + 1);
     else
-        return (k + 2);
+        return (argB + 2);
 }

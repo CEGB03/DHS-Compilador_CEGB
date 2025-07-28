@@ -101,12 +101,16 @@ class TablaSimbolos:
     def add_contexto(self, nombreContexto):
         nuevoContexto = Contexto(nombreContexto)
         self.contextos.append(nuevoContexto)
-        self.contextos_historial.append(nuevoContexto)  # <-- Guarda el historial
+        # ===== CORRECCIÓN: Solo agregar al historial cuando el contexto se elimine =====
         return nuevoContexto
         
     def del_Contexto(self):
         if self.contextos is not None and len(self.contextos) > 1:
-            return self.contextos.pop()
+            contexto_eliminado = self.contextos.pop()
+            # ===== CORRECCIÓN: Agregar al historial solo cuando se elimine =====
+            if contexto_eliminado not in self.contextos_historial:
+                self.contextos_historial.append(contexto_eliminado)
+            return contexto_eliminado
         return None
         
     def add_identificador(self, id):
@@ -141,8 +145,17 @@ class TablaSimbolos:
         return None
     def __str__(self):
         ctx_repr = ""
+        
+        # ===== CORRECCIÓN: Incluir contextos activos (especialmente global) =====
+        # Primero mostrar contextos activos que no estén en historial
+        for ctx in self.contextos:
+            if ctx not in self.contextos_historial:
+                ctx_repr += ctx.__str__() + "\n"
+        
+        # Luego mostrar historial de contextos
         for ctx in self.contextos_historial:
             ctx_repr += ctx.__str__() + "\n"
+        
         return "Tabla de Simbolos:\n" + ctx_repr
     
     def mostrarVarsSinUsar(self):
@@ -178,12 +191,17 @@ class TablaSimbolos:
                 print("Variables sin usar en contexto global:")
                 for var in vars_sin_usar:
                     print("  " + str(var))
-        # Reportar funciones desarrolladas no usadas
+        
+        # Reportar funciones desarrolladas no usadas (EXCLUYENDO main)
         funciones_no_usadas = []
         for contexto in self.contextos_historial:
             for id in contexto.ids.values():
-                if isinstance(id, Funcion) and id.inicializado and not id.usado:
+                if (isinstance(id, Funcion) and 
+                    id.inicializado and 
+                    not id.usado and 
+                    id.nombre.lower() != "main"):  # ⭐ EXCLUIR main del reporte
                     funciones_no_usadas.append(id)
+        
         if funciones_no_usadas:
             print("Funciones desarrolladas pero no usadas:")
             for fun in funciones_no_usadas:
@@ -208,10 +226,27 @@ class TablaSimbolos:
         Marca la función main como usada si la bandera está activa.
         """
         if ignorar_main_usada:
+            # Buscar en TODOS los contextos (activos e historial)
+            main_encontrada = False
+            
+            # Buscar en contextos activos
+            for contexto in self.contextos:
+                for id in contexto.ids.values():
+                    if isinstance(id, Funcion) and id.nombre == "main":
+                        id.set_usado()
+                        main_encontrada = True
+                        print(f"DEBUG: ✓ Función main marcada como usada en contexto activo: {contexto.nombreContexto}")
+            
+            # Buscar en historial de contextos
             for contexto in self.contextos_historial:
                 for id in contexto.ids.values():
                     if isinstance(id, Funcion) and id.nombre == "main":
                         id.set_usado()
+                        main_encontrada = True
+                        print(f"DEBUG: ✓ Función main marcada como usada en historial: {contexto.nombreContexto}")
+            
+            if not main_encontrada:
+                print("DEBUG: ⚠️ No se encontró función main para marcar como usada")
     
     def cargar_argumentos_en_contexto(self, funcion):
         """
