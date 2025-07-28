@@ -45,16 +45,15 @@ class Etiquetas:
         self.counter += 1
         return etiqueta
 
-    def etiqueta_funcion(self, identificador:str):
-        if identificador in self.funciones:
-            return self.funciones[identificador]
-        lista = []
-        etiqueta1 = self.next_etiqueta()
-        etiqueta2 = self.next_etiqueta()
-        lista.append(etiqueta1)
-        lista.append(etiqueta2)
-        self.funciones[identificador] = lista
-        return lista
+    def etiqueta_funcion(self, identificador: str):
+        """
+        ===== CAMBIO: Simplificar manejo de etiquetas de función =====
+        Ahora solo retorna el nombre de la función como etiqueta
+        """
+        if identificador not in self.funciones:
+            # Solo guardar el nombre de la función
+            self.funciones[identificador] = identificador
+        return identificador
 
 class Walker (compiladoresVisitor):
     def __init__(self): 
@@ -62,7 +61,16 @@ class Walker (compiladoresVisitor):
         self.ruta = './output/codigoIntermedio.txt'
         self.temps = Temporales()
         self.labels = Etiquetas()
-        self.temporales = []  # Lista para temporales (compatibilidad con código existente)
+        
+        # ===== NUEVO: Variables del patrón de referencia =====
+        self.contador_var_temporales = 0  # Compatibilidad
+        self.variables_temporales = []     # Para expresiones complejas
+        self.argumentos_funciones = []     # Para argumentos de función
+        self.var_retorno = []              # Para valores de retorno
+        self.var_a_asignar = ''           # Variable siendo asignada
+        
+        # Variables existentes
+        self.temporales = []
         self.isFuncion = 0
         self.inFuncion = 0
         self.indent_level = 0
@@ -364,19 +372,17 @@ class Walker (compiladoresVisitor):
 
     def visitIreturn(self, ctx: compiladoresParser.IreturnContext):
         if self.inFuncion == 1:
-            # ===== CORRECCIÓN: Evaluar la expresión de retorno =====
+            # ===== MEJORA: Sistema de retorno mejorado =====
+            if not hasattr(self, 'var_retorno'):
+                self.var_retorno = []
+                
             if ctx.opal():
                 resultado = self.visit(ctx.opal())
-                # Si es un literal, generar temporal
-                if self.es_literal(resultado):
-                    temp = self.temps.next_temporal()
-                    self.write(f'{temp} = {resultado}')
-                    self.file.write(f'push {temp}\n')
-                else:
-                    self.file.write(f'push {resultado}\n')
+                # Agregar a lista de retorno para ser procesado en la función
+                self.var_retorno.append(resultado)
             else:
                 # Return sin valor
-                self.file.write(f'push 0\n')
+                self.var_retorno.append("0")
 
     def visitIif(self, ctx:compiladoresParser.IifContext):
         self.visit(ctx.cond())
@@ -427,23 +433,28 @@ class Walker (compiladoresVisitor):
 
     def visitIllamada(self, ctx: compiladoresParser.IllamadaContext):
         function_name = ctx.ID().getText()
-        # Extraer argumentos de la llamada
+        
+        # ===== MEJORA: Usar patrón de referencia para llamadas =====
+        # Extraer argumentos
         args = self.extraer_argumentos_llamada(ctx.argumento())
         
-        # ===== CORRECCIÓN: Manejo más claro de llamadas =====
-        # Empujar argumentos en orden normal (se sacan en orden inverso)
+        # Push argumentos en orden
         for arg in args:
             self.file.write(f'push {arg}\n')
         
-        # Obtener etiquetas de función
-        etiquetas = self.labels.etiqueta_funcion(function_name)
+        # ===== MEJORA: Generar etiqueta de retorno única =====
+        etiqueta_retorno = self.labels.next_etiqueta()
         
-        # Empujar dirección de retorno y saltar
-        self.file.write(f'push {etiquetas[1]}\n')
-        self.file.write(f'jmp {etiquetas[0]}\n')
-        self.file.write(f'label {etiquetas[1]}\n')
+        # Push dirección de retorno
+        self.file.write(f'push {etiqueta_retorno}\n')
         
-        # El resultado de la función se obtiene de la pila
+        # Saltar a función (usando nombre directo)
+        self.file.write(f'jmp {function_name}\n')
+        
+        # Etiqueta de retorno
+        self.file.write(f'label {etiqueta_retorno}\n')
+        
+        # ===== MEJORA: Resultado de función =====
         temp = self.temps.next_temporal()
         self.file.write(f'pop {temp}\n')
         return temp
@@ -473,38 +484,15 @@ class Walker (compiladoresVisitor):
         # Caso: tipo x; (solo declaración)
         if ctx.ID():
             nombre = ctx.ID().getText()
-            self.write(f'{tipo} {nombre}')
-            
-        # Caso: tipo x = valor; (declaración con inicialización)
+            # ===== CAMBIO: NO escribir tipos en código intermedio =====
+            # Solo procesamos sin generar código
+        
+        # Caso: tipo x = valor; (declaración con inicialización)  
         elif ctx.asignacion():
-            asignacion_ctx = ctx.asignacion()
-            if asignacion_ctx.asignacionNum():
-                nombre = asignacion_ctx.asignacionNum().ID().getText()
-                # ===== CORRECCIÓN: Mostrar tipo explícitamente =====
-                #self.write(f'{tipo} {nombre}')
-                # ===== NUEVO: SIEMPRE generar temporal para inicializaciones =====
-                resultado = self.visit(asignacion_ctx.asignacionNum().exp())
-                # Si el resultado es un literal, crear temporal
-                if self.es_literal(resultado):
-                    temp = self.temps.next_temporal()
-                    self.write(f'{temp} = {resultado}')
-                    self.write(f'{nombre} = {temp}')
-                else:
-                    self.write(f'{nombre} = {resultado}')
-            elif asignacion_ctx.asignacionBool():
-                nombre = asignacion_ctx.asignacionBool().ID().getText()
-                # ===== CORRECCIÓN: Mostrar tipo explícitamente =====
-                #self.write(f'{tipo} {nombre}')
-                # ===== NUEVO: SIEMPRE generar temporal para inicializaciones booleanas =====
-                resultado = self.visit(asignacion_ctx.asignacionBool().opbool())
-                if self.es_literal(resultado):
-                    temp = self.temps.next_temporal()
-                    self.write(f'{temp} = {resultado}')
-                    self.write(f'{nombre} = {temp}')
-                else:
-                    self.write(f'{nombre} = {resultado}')
+            # Procesar asignación sin mostrar tipos
+            self.visit(ctx.asignacion())
 
-        # ===== CORRECCIÓN: Declaraciones múltiples dentro del método =====
+        # Declaraciones múltiples
         if ctx.dec():
             self.visit(ctx.dec())
 
@@ -555,49 +543,54 @@ class Walker (compiladoresVisitor):
 
     def visitIfuncion(self, ctx: compiladoresParser.IfuncionContext):
         function_name = ctx.ID().getText() if ctx.ID() else "anonymous"
-        etiquetas = self.labels.etiqueta_funcion(function_name)
         
-        self.file.write(f'label {etiquetas[0]}\n')
-        self.file.write(f'pop t0\n')  # Dirección de retorno
+        # ===== MEJORA: Usar el patrón del código de referencia =====
+        # Generar etiqueta de función directamente con el nombre
+        self.file.write(f'label {function_name}\n')
         
-        # ===== CORRECCIÓN: Procesar argumentos correctamente =====
-        argumentos_funcion = []
+        # Dirección de retorno (usar variable temporal específica)
+        direccion_retorno = f't{self.temps.counter}'
+        self.temps.counter += 1
+        self.file.write(f'pop {direccion_retorno}\n')
+        
+        # ===== MEJORA: Procesar argumentos de forma más sistemática =====
         if ctx.param():
-            argumentos_funcion = self.extraer_argumentos_param(ctx.param())
-            # Procesar argumentos en orden inverso (como vienen de la pila)
-            for tipo, nombre in reversed(argumentos_funcion):
-                self.file.write(f'pop {nombre}\n')
-                # ===== CAMBIO: NO escribir tipo en código intermedio =====
-
-        # Procesar declaraciones de variables locales
+            # Primero extraer argumentos y procesarlos en orden
+            self.procesar_argumentos_funcion(ctx.param())
+        
+        # Procesar cuerpo de la función
         self.inFuncion = 1
         self.visit(ctx.bloque())
         self.inFuncion = 0
         
-        self.file.write(f'jmp t0\n')  # Retorno
+        # ===== MEJORA: Manejo de retorno mejorado =====
+        # Verificar si hay valor de retorno pendiente
+        if hasattr(self, 'var_retorno') and self.var_retorno:
+            valor_retorno = self.var_retorno.pop()
+            self.file.write(f'push {valor_retorno}\n')
+    
+        # Saltar a dirección de retorno
+        self.file.write(f'jmp {direccion_retorno}\n')
 
-    def extraer_argumentos_param(self, param_ctx):
-        """Extrae argumentos de la definición de función"""
-        args = []
-        ctx = param_ctx
+    def procesar_argumentos_funcion(self, param_ctx):
+        """Procesar argumentos de función de forma sistemática"""
+        # ===== NUEVO: Lista para argumentos de función =====
+        if not hasattr(self, 'argumentos_funciones'):
+            self.argumentos_funciones = []
         
-        # Verificar si hay un 'p' directamente
-        if hasattr(ctx, 'p') and ctx.p():
-            tipo = ctx.p().tipo().getText()
-            nombre = ctx.p().ID().getText()
-            args.append((tipo, nombre))
+        # Extraer argumentos
+        args = self.extraer_argumentos_param(param_ctx)
         
-        # Navegación recursiva
-        while ctx is not None and hasattr(ctx, 'param') and ctx.param():
-            ctx = ctx.param()
-            if hasattr(ctx, 'p') and ctx.p():
-                tipo = ctx.p().tipo().getText()
-                nombre = ctx.p().ID().getText()
-                args.append((tipo, nombre))
-            else:
-                break
+        # Procesar argumentos en orden inverso (como vienen de la pila)
+        for tipo, nombre in reversed(args):
+            self.argumentos_funciones.append(nombre)
         
-        return args
+        # Escribir pops para argumentos
+        for arg in self.argumentos_funciones:
+            self.file.write(f'pop {arg}\n')
+        
+        # Limpiar lista
+        self.argumentos_funciones.clear()
 
     def visitIelse(self, ctx: compiladoresParser.IelseContext):
         self.visit(ctx.instruccion())
@@ -669,3 +662,26 @@ class Walker (compiladoresVisitor):
             # Expresión booleana entre paréntesis
             return self.visit(ctx.opbool())
         return "error_bool"
+
+    def extraer_argumentos_param(self, param_ctx):
+        """Extrae argumentos de la definición de función (param)"""
+        args = []
+        ctx = param_ctx
+        
+        # Verificar si hay un 'p' directamente
+        if hasattr(ctx, 'p') and ctx.p():
+            tipo = ctx.p().tipo().getText()
+            nombre = ctx.p().ID().getText()
+            args.append((tipo, nombre))
+    
+        # Navegación recursiva
+        while ctx is not None and hasattr(ctx, 'param') and ctx.param():
+            ctx = ctx.param()
+            if hasattr(ctx, 'p') and ctx.p():
+                tipo = ctx.p().tipo().getText()
+                nombre = ctx.p().ID().getText()
+                args.append((tipo, nombre))
+            else:
+                break
+    
+        return args
